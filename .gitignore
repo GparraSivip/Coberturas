@@ -1,0 +1,6 @@
+node_modules/
+*.xlsx
+*.pbix
+*.tmp
+.DS_Store
+Thumbs.db

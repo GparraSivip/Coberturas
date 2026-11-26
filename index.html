@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Coberturas Sanitarias</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ===== SPINNER ===== -->
+<div id="loading">
+  <div class="spinner"></div>
+  <span>Cargando datos…</span>
+</div>
+
+<!-- ===== HEADER ===== -->
+<header>
+  <div class="logo">🐄</div>
+  <h1>
+    Coberturas Sanitarias
+    <span>Vacunación e Identificación — Colombia</span>
+  </h1>
+  <div class="last-update" id="last-update-label"></div>
+</header>
+
+<!-- ===== BODY ===== -->
+<div class="app-body">
+
+  <!-- SIDEBAR -->
+  <aside>
+    <div>
+      <h3>Mes</h3>
+      <div class="filter-group" id="mes-filters"></div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main>
+
+    <!-- ZONA TABS -->
+    <div class="zona-tabs" id="zona-tabs"></div>
+
+    <!-- KPIs -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Inventario</div>
+        <div class="kpi-value" id="kpi-inventario">—</div>
+        <div class="kpi-sub">Animales registrados</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Vacunados / Chapeteados</div>
+        <div class="kpi-value" id="kpi-vacunados">—</div>
+        <div class="kpi-sub">Año en curso</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Cobertura Nacional</div>
+        <div class="kpi-value" id="kpi-cobertura">—</div>
+        <div class="kpi-sub">Vacunados / Inventario</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Variación vs año anterior</div>
+        <div class="kpi-value" id="kpi-delta">—</div>
+        <div class="kpi-sub" id="kpi-año">animales</div>
+      </div>
+    </div>
+
+    <!-- GRÁFICOS — fila 1 -->
+    <div class="charts-grid">
+
+      <!-- Gauge cobertura -->
+      <div class="chart-card">
+        <h2>Cobertura Nacional</h2>
+        <div class="gauge-wrap">
+          <canvas id="gaugeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Barras inventario vs vacunados -->
+      <div class="chart-card">
+        <h2>Inventario vs. Vacunados — Top 15 departamentos</h2>
+        <div class="chart-wrap">
+          <canvas id="barrasChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Tendencia anual — ancho completo -->
+      <div class="chart-card full-width">
+        <h2 id="tendencia-titulo">Comparativo mensual</h2>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="tendenciaChart"></canvas>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- TABLA -->
+    <div class="table-card">
+      <h2>Detalle por Departamento</h2>
+      <div class="table-toolbar">
+        <input type="text" id="tabla-search" placeholder="Buscar departamento…" />
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Departamento</th>
+              <th style="text-align:right">Inventario</th>
+              <th style="text-align:right">Vacunados</th>
+              <th style="min-width:140px">% Cob. Animales</th>
+              <th style="text-align:right">Predios</th>
+              <th style="text-align:right">Predios vac.</th>
+              <th style="min-width:140px">% Cob. Predios</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-body"></tbody>
+          <tfoot id="tabla-foot"></tfoot>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer>
+  Dashboard generado con Chart.js · Datos actualizados mensualmente desde baseCobertura.xlsx
+</footer>
+
+<!-- ===== SCRIPTS ===== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="js/app.js"></script>
+
+<script>
+  // Mostrar fecha de última actualización
+  document.getElementById('last-update-label').textContent =
+    'Datos al: ' + new Date().toLocaleDateString('es-CO', {year:'numeric', month:'long'});
+</script>
+
+</body>
+</html>

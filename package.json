@@ -1,0 +1,11 @@
+{
+  "name": "coberturas-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard de coberturas sanitarias - vacunación e identificación animal Colombia",
+  "scripts": {
+    "actualizar": "node actualizar_datos.js"
+  },
+  "dependencies": {
+    "xlsx": "^0.18.5"
+  }
+}
