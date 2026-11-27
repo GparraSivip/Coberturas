@@ -148,7 +148,7 @@ function renderKPIs(curr, ant) {
   $('kpi-vacunados').textContent  = fmt(vacun);
   $('kpi-cobertura').textContent  = cob.toFixed(1) + '%';
   $('kpi-delta').textContent      = signo + fmt(delta);
-  $('kpi-delta').style.color      = delta >= 0 ? '#27ae60' : '#e74c3c';
+  $('kpi-delta').style.color      = delta >= 0 ? '#27ae60' : '#2563a8';
   $('kpi-año').textContent = `${state.añoActual} vs ${state.añoAnterior}`;
 }
 
@@ -175,8 +175,8 @@ function renderGauge(curr) {
       datasets: [{
         data: [pct, rest, 100],   // segmento lleno, vacío, invisible (mitad inferior)
         backgroundColor: [
-          cob >= 90 ? '#27ae60' : cob >= 70 ? '#f39c12' : '#c0392b',
-          '#ecf0f1',
+          cob >= 90 ? '#27ae60' : cob >= 70 ? '#f39c12' : '#2563a8',
+          '#dde6f0',
           'transparent'
         ],
         borderWidth: 0,
@@ -203,7 +203,8 @@ function renderGauge(curr) {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = 'bold 2rem Segoe UI, sans-serif';
-        ctx.fillStyle = cob >= 90 ? '#27ae60' : cob >= 70 ? '#f39c12' : '#c0392b';
+        const color = cob >= 90 ? '#27ae60' : cob >= 70 ? '#f39c12' : '#2563a8';
+        ctx.fillStyle = color;
         ctx.fillText(cob.toFixed(1) + '%', cx, cy);
         ctx.font = '.7rem Segoe UI, sans-serif';
         ctx.fillStyle = '#7f8c8d';
@@ -243,8 +244,8 @@ function renderTendencia() {
         {
           label: String(state.añoAnterior),
           data: dataAnt,
-          borderColor: '#3498db',
-          backgroundColor: 'rgba(52,152,219,.08)',
+          borderColor: '#4a90d9',
+          backgroundColor: 'rgba(74,144,217,.08)',
           borderWidth: 2,
           pointRadius: 4,
           tension: .35,
@@ -253,8 +254,8 @@ function renderTendencia() {
         {
           label: String(state.añoActual),
           data: dataCurr,
-          borderColor: '#c0392b',
-          backgroundColor: 'rgba(192,57,43,.08)',
+          borderColor: '#1a3a5c',
+          backgroundColor: 'rgba(26,58,92,.10)',
           borderWidth: 2.5,
           pointRadius: 5,
           tension: .35,
@@ -321,13 +322,13 @@ function renderBarras(curr) {
         {
           label: 'Inventario',
           data: invs,
-          backgroundColor: 'rgba(52,152,219,.75)',
+          backgroundColor: 'rgba(74,144,217,.75)',
           borderRadius: 4,
         },
         {
           label: 'Vacunados',
           data: vacuns,
-          backgroundColor: 'rgba(192,57,43,.8)',
+          backgroundColor: 'rgba(26,58,92,.85)',
           borderRadius: 4,
         }
       ]
@@ -416,7 +417,7 @@ function drawTable(rows, total) {
   const tfoot = $('tabla-foot');
   if (tfoot) {
     tfoot.innerHTML = `
-      <tr style="font-weight:700; background:#fdecea;">
+      <tr style="font-weight:700; background:#d6e8f7;">
         <td>TOTAL</td>
         <td style="text-align:right">${fmt(total.inv)}</td>
         <td style="text-align:right">${fmt(total.vacun)}</td>

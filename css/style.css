@@ -2,17 +2,19 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --rojo:    #c0392b;
-  --rojo-cl: #e74c3c;
-  --azul:    #2980b9;
-  --azul-cl: #3498db;
-  --gris-bg: #f4f6f9;
-  --gris-cl: #ecf0f1;
-  --texto:   #2c3e50;
+  --rojo:    #1a3a5c;   /* azul oscuro PorkColombia — acento principal */
+  --rojo-cl: #2563a8;   /* azul medio */
+  --azul:    #2563a8;
+  --azul-cl: #4a90d9;
+  --gris-bg: #f0f4f8;
+  --gris-cl: #dde6f0;
+  --texto:   #1e2d3d;
   --blanco:  #ffffff;
-  --sombra:  0 2px 8px rgba(0,0,0,.12);
+  --sombra:  0 2px 8px rgba(0,0,0,.10);
   --radio:   8px;
   --sidebar: 200px;
+  /* acento secundario (rojo/coral PorkColombia) */
+  --acento:  #c0392b;
 }
 
 body {
@@ -24,9 +26,9 @@ body {
 
 /* ===== HEADER ===== */
 header {
-  background: var(--blanco);
+  background: var(--rojo);   /* azul oscuro PorkColombia */
   box-shadow: var(--sombra);
-  padding: 12px 24px;
+  padding: 10px 24px;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -36,35 +38,34 @@ header {
 }
 
 header .logo {
-  width: 48px;
-  height: 48px;
-  background: var(--rojo);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 22px;
+  height: 44px;
+  width: auto;
   flex-shrink: 0;
+  display: block;
+  /* fondo blanco redondeado para que el logo resalte sobre el header azul */
+  background: white;
+  border-radius: 6px;
+  padding: 3px 6px;
+  object-fit: contain;
 }
 
 header h1 {
   font-size: 1.1rem;
   font-weight: 700;
-  color: var(--rojo);
+  color: #ffffff;
   line-height: 1.2;
 }
 header h1 span {
   display: block;
   font-size: .75rem;
   font-weight: 400;
-  color: #7f8c8d;
+  color: rgba(255,255,255,.75);
 }
 
 .last-update {
   margin-left: auto;
   font-size: .75rem;
-  color: #7f8c8d;
+  color: rgba(255,255,255,.70);
   text-align: right;
 }
 
@@ -91,7 +92,7 @@ aside h3 {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: .06em;
-  color: #95a5a6;
+  color: var(--azul);
   margin-bottom: 6px;
 }
 
@@ -288,9 +289,9 @@ thead th {
   font-weight: 600;
   white-space: nowrap;
 }
-tbody tr:nth-child(even) { background: #f8f9fa; }
-tbody tr:hover { background: #fdecea; }
-tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #eef4fb; }
+tbody tr:hover { background: #d6e8f7; }
+tbody td { padding: 7px 10px; border-bottom: 1px solid #dde6f0; white-space: nowrap; }
 
 .pct-bar {
   display: flex;
@@ -313,7 +314,7 @@ tbody td { padding: 7px 10px; border-bottom: 1px solid #eee; white-space: nowrap
 }
 .pct-bar-fill.alta  { background: #27ae60; }
 .pct-bar-fill.media { background: #f39c12; }
-.pct-bar-fill.baja  { background: var(--rojo); }
+.pct-bar-fill.baja  { background: var(--azul-cl); }
 
 /* ===== FOOTER ===== */
 footer {
@@ -339,7 +340,7 @@ footer {
 }
 .spinner {
   width: 42px; height: 42px;
-  border: 4px solid #f3f3f3;
+  border: 4px solid #dde6f0;
   border-top-color: var(--rojo);
   border-radius: 50%;
   animation: spin .8s linear infinite;
