@@ -1,6 +1,6 @@
 /* =====================================================================
    app.js  –  Dashboard Coberturas Sanitarias
-   Lee data/coberturas.json (generado desde baseCobertura.xlsx)
+   Lee data/coberturas.json (generado desde ambos archivos Excel)
    ===================================================================== */
 
 // ---- Orden canónico de meses ----
@@ -10,6 +10,7 @@ const MESES_ORDER = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
 // ---- Estado global ----
 const state = {
   data:        [],     // todos los registros
+  inventario:  [],     // inventario consolidado por municipio y zona
   zona:        'Vacunación',
   mes:         'Todos',
   añoActual:   null,
@@ -30,16 +31,17 @@ let chartGauge     = null;
 document.addEventListener('DOMContentLoaded', () => {
   fetch('data/coberturas.json')
     .then(r => r.json())
-    .then(data => {
-      state.data = data;
+    .then(payload => {
+      state.data = payload.records;
+      state.inventario = payload.inventario;
 
       // Determinar años presentes
-      const years = [...new Set(data.map(d => d.ano))].sort();
+      const years = [...new Set(state.data.map(d => d.ano))].sort();
       state.añoActual   = years[years.length - 1];
       state.añoAnterior = years.length > 1 ? years[years.length - 2] : years[0];
 
       const mesActual = [...new Set(
-        data.filter(d => d.ano === state.añoActual).map(d => d.mes)
+        state.data.filter(d => d.ano === state.añoActual).map(d => d.mes)
       )]
         .filter(m => MESES_ORDER.includes(m))
         .sort((a, b) => MESES_ORDER.indexOf(b) - MESES_ORDER.indexOf(a))[0];
@@ -124,6 +126,29 @@ function filtrar(ano, mes) {
   );
 }
 
+function agregarInventario(rows) {
+  const animalesProcesados = new Set();
+  const prediosProcesados = new Set();
+  const totales = { inv: 0, predios: 0 };
+
+  rows.forEach(d => {
+    const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+    const keyAnimales = `${codigo}|${d.zonaInv}`;
+
+    if (!animalesProcesados.has(keyAnimales)) {
+      totales.inv += d.inv || 0;
+      animalesProcesados.add(keyAnimales);
+    }
+
+    if (!prediosProcesados.has(codigo)) {
+      totales.predios += d.predios || 0;
+      prediosProcesados.add(codigo);
+    }
+  });
+
+  return totales;
+}
+
 /* =========================================================
    RENDER PRINCIPAL
    ========================================================= */
@@ -142,11 +167,13 @@ function render() {
    KPIs
    ========================================================= */
 function renderKPIs(curr, ant) {
-  const inv   = curr.reduce((s, d) => s + d.inv,   0);
+  const inventario = agregarInventario(
+    state.inventario.filter(d => d.zona === state.zona)
+  );
+  const inv = inventario.inv;
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? (vacun / inv * 100) : 0;
 
-  const invAnt   = ant.reduce((s, d) => s + d.inv,   0);
   const vacunAnt = ant.reduce((s, d) => s + d.vacun, 0);
 
   const delta = vacun - vacunAnt;
@@ -164,7 +191,9 @@ function renderKPIs(curr, ant) {
    GAUGE
    ========================================================= */
 function renderGauge(curr) {
-  const inv   = curr.reduce((s, d) => s + d.inv,   0);
+  const inv = agregarInventario(
+    state.inventario.filter(d => d.zona === state.zona)
+  ).inv;
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? Math.min((vacun / inv * 100), 200) : 0;
 
@@ -234,7 +263,6 @@ function renderTendencia() {
   function porMes(ano) {
     return MESES_ORDER.map(m => {
       const rows = filtrar(ano, m);
-      const inv   = rows.reduce((s, d) => s + d.inv,   0);
       const vacun = rows.reduce((s, d) => s + d.vacun, 0);
       return vacun; // total animales vacunados ese mes
     });
@@ -304,20 +332,39 @@ function renderBarras(curr) {
   const ctx = $('barrasChart');
   if (!ctx) return;
 
-  // Agrupar por departamento
-  const porDepto = {};
+  const porDepto = new Map();
+  const inventarioProcesado = new Set();
+  state.inventario
+    .filter(d => d.zona === state.zona)
+    .forEach(d => {
+      const deptoKey = normalizarDepto(d.depto);
+      if (!porDepto.has(deptoKey)) {
+        porDepto.set(deptoKey, { depto: d.depto, inv: 0, vacun: 0 });
+      }
+      const item = porDepto.get(deptoKey);
+      const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+      const key = `${codigo}|${d.zonaInv}`;
+      if (!inventarioProcesado.has(key)) {
+        item.inv += d.inv || 0;
+        inventarioProcesado.add(key);
+      }
+    });
+
   curr.forEach(d => {
-    if (!porDepto[d.depto]) porDepto[d.depto] = { inv: 0, vacun: 0 };
-    porDepto[d.depto].inv   += d.inv;
-    porDepto[d.depto].vacun += d.vacun;
+    const deptoKey = normalizarDepto(d.depto);
+    if (!porDepto.has(deptoKey)) {
+      porDepto.set(deptoKey, { depto: d.depto, inv: 0, vacun: 0 });
+    }
+    porDepto.get(deptoKey).depto = d.depto;
+    porDepto.get(deptoKey).vacun += d.vacun;
   });
 
   // Ordenar por inventario desc, tomar top 15
-  const sorted = Object.entries(porDepto)
+  const sorted = [...porDepto.entries()]
     .sort((a, b) => b[1].inv - a[1].inv)
     .slice(0, 15);
 
-  const labels = sorted.map(([d]) => d);
+  const labels = sorted.map(([, v]) => v.depto);
   const invs   = sorted.map(([, v]) => v.inv);
   const vacuns = sorted.map(([, v]) => v.vacun);
 
@@ -364,44 +411,71 @@ function renderBarras(curr) {
   });
 }
 
+function normalizarDepto(depto) {
+  return String(depto || '').trim().toLocaleUpperCase('es-CO');
+}
+
 /* =========================================================
    TABLA
    ========================================================= */
 function renderTabla(curr) {
-  // Agrupar por departamento
-  const porDepto = {};
+  const porDepto = new Map();
+  const inventarioProcesado = new Set();
+  const prediosProcesados = new Set();
+
+  state.inventario
+    .filter(d => d.zona === state.zona)
+    .forEach(d => {
+      const deptoKey = normalizarDepto(d.depto);
+      if (!porDepto.has(deptoKey)) {
+        porDepto.set(deptoKey, {
+          depto: d.depto, inv: 0, vacun: 0, predios: 0, vacPred: 0,
+        });
+      }
+      const item = porDepto.get(deptoKey);
+      const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+      const keyInventario = `${codigo}|${d.zonaInv}`;
+      if (!inventarioProcesado.has(keyInventario)) {
+        item.inv += d.inv || 0;
+        inventarioProcesado.add(keyInventario);
+      }
+      if (!prediosProcesados.has(codigo)) {
+        item.predios += d.predios || 0;
+        prediosProcesados.add(codigo);
+      }
+    });
+
   curr.forEach(d => {
-    if (!porDepto[d.depto]) porDepto[d.depto] = { inv: 0, vacun: 0, predios: 0, vacPred: 0 };
-    porDepto[d.depto].inv     += d.inv;
-    porDepto[d.depto].vacun   += d.vacun;
-    porDepto[d.depto].predios += d.predios;
-    porDepto[d.depto].vacPred += d.vacPred;
+    const deptoKey = normalizarDepto(d.depto);
+    if (!porDepto.has(deptoKey)) {
+      porDepto.set(deptoKey, {
+        depto: d.depto, inv: 0, vacun: 0, predios: 0, vacPred: 0,
+      });
+    }
+    const item = porDepto.get(deptoKey);
+    item.depto = d.depto;
+    item.vacun += d.vacun;
+    item.vacPred += d.vacPred;
   });
 
-  const rows = Object.entries(porDepto)
-    .map(([depto, v]) => ({
-      depto,
-      inv:     v.inv,
-      vacun:   v.vacun,
+  const rows = [...porDepto.values()]
+    .map(v => ({
+      ...v,
       cobAnim: v.inv > 0 ? v.vacun / v.inv * 100 : 0,
-      predios: v.predios,
-      vacPred: v.vacPred,
       cobPred: v.predios > 0 ? v.vacPred / v.predios * 100 : 0,
     }))
     .sort((a, b) => b.inv - a.inv);
 
-  // Totales
   const total = rows.reduce((acc, r) => ({
-    inv:     acc.inv     + r.inv,
-    vacun:   acc.vacun   + r.vacun,
+    inv: acc.inv + r.inv,
+    vacun: acc.vacun + r.vacun,
     predios: acc.predios + r.predios,
     vacPred: acc.vacPred + r.vacPred,
   }), { inv: 0, vacun: 0, predios: 0, vacPred: 0 });
   total.cobAnim = total.inv > 0 ? total.vacun / total.inv * 100 : 0;
   total.cobPred = total.predios > 0 ? total.vacPred / total.predios * 100 : 0;
 
-  window._tableData = rows;  // para búsqueda
-
+  window._tableData = rows;
   drawTable(rows, total);
 }
 

@@ -9,11 +9,12 @@ Dashboard web para seguimiento de coberturas de vacunación e identificación an
 ## Actualización mensual (cada fin de mes)
 
 1. Agrega los nuevos datos en `baseCobertura.xlsx` (hoja `Base`)
-2. Desde esta carpeta, ejecuta:
+2. Mantén junto a esta carpeta los archivos `baseCobertura.xlsx` y `baseInventario.xlsx`.
+3. Desde esta carpeta, ejecuta:
    ```
    node actualizar_datos.js
    ```
-3. Publica los cambios:
+4. Publica los cambios:
    ```
    git add data/coberturas.json
    git commit -m "Datos <mes> <año>"
@@ -36,6 +37,18 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 | `existenciaPredios` | Inventario de predios |
 | `vacunados ó chapeteados` | Animales tratados |
 | `predios` | Predios tratados |
+
+---
+
+## Fuente de inventario
+
+`baseInventario.xlsx` usa la hoja `inventario`:
+
+- Los animales se suman agrupando por `cod_munpio` y `zona`.
+- Cada fila representa un predio. Se cuentan filas por `cod_munpio` dentro de cada categoría: `ZC` corresponde a Vacunación y `ZE`, `ZL1` y `ZL2` a Identificación. En total, la fuente contiene 218.118 filas: 177.512 de Vacunación y 40.606 de Identificación.
+- El JSON guarda el inventario consolidado separado de las capturas mensuales, por lo que cambiar mes o año no duplica ni reduce el inventario.
+
+El código municipal se relaciona con `codMcpo` de la hoja `Base`. La zona operativa se relaciona con `zona`, mientras que la pestaña del dashboard usa `zonaOrganizadas` (`Vacunación` o `Identificación`). La hoja `respaldo`, si existe, no se usa.
 
 ---
 
