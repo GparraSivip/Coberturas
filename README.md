@@ -28,6 +28,8 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 
 Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
 
+La tabla ajusta sus columnas al contenido y cambia la columna de animales entre "Animales vacunados" y "Animales identificados" según la zona.
+
 ---
 
 ## Estructura del Excel esperada (hoja `Base`)

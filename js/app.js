@@ -222,6 +222,7 @@ function inventarioSegunMedida(rows) {
    RENDER PRINCIPAL
    ========================================================= */
 function render() {
+  updateZoneLabels();
   const datosCurr = filtrar(state.añoActual, 'Todos');
   const datosAnt  = filtrar(state.añoAnterior, 'Todos');
 
@@ -230,6 +231,19 @@ function render() {
   renderTendencia();
   renderBarras(datosCurr);
   renderTabla(datosCurr);
+}
+
+function nombreActividad() {
+  return state.zona === 'Identificación'
+    ? 'Animales identificados'
+    : 'Animales vacunados';
+}
+
+function updateZoneLabels() {
+  const actividad = nombreActividad();
+  $('kpi-actividad-label').textContent = actividad;
+  $('barras-titulo').textContent = `Inventario vs. ${actividad} — Top 15 departamentos`;
+  $('tabla-animales-header').textContent = actividad;
 }
 
 /* =========================================================
@@ -448,7 +462,7 @@ function renderBarras(curr) {
           borderRadius: 4,
         },
         {
-          label: 'Vacunados',
+          label: nombreActividad(),
           data: vacuns,
           backgroundColor: 'rgba(26,58,92,.85)',
           borderRadius: 4,

@@ -56,7 +56,7 @@
         <div class="kpi-value" id="kpi-inventario">—</div>
     </div>
       <div class="kpi-card">
-        <div class="kpi-label">Vacunados / Chapeteados</div>
+        <div class="kpi-label" id="kpi-actividad-label">Animales vacunados</div>
         <div class="kpi-value" id="kpi-vacunados">—</div>
     </div>
       <div class="kpi-card">
@@ -83,7 +83,7 @@
 
       <!-- Barras inventario vs vacunados -->
       <div class="chart-card">
-        <h2>Inventario vs. Vacunados — Top 15 departamentos</h2>
+        <h2 id="barras-titulo">Inventario vs. Animales vacunados — Top 15 departamentos</h2>
         <div class="chart-wrap">
           <canvas id="barrasChart"></canvas>
         </div>
@@ -111,11 +111,11 @@
             <tr>
               <th>Departamento</th>
               <th style="text-align:right">Inventario</th>
-              <th style="text-align:right">Vacunados</th>
-              <th style="min-width:140px">% Cob. Animales</th>
+              <th id="tabla-animales-header" style="text-align:right">Animales vacunados</th>
+              <th style="text-align:right">Cobertura de animales (%)</th>
               <th style="text-align:right">Predios</th>
-              <th style="text-align:right">Predios vac.</th>
-              <th style="min-width:140px">% Cob. Predios</th>
+              <th style="text-align:right">Predios visitados</th>
+              <th style="text-align:right">Cobertura de predios (%)</th>
             </tr>
           </thead>
           <tbody id="tabla-body"></tbody>
