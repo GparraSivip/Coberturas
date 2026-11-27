@@ -121,6 +121,25 @@ aside h3 {
 }
 .filter-group.department-filters { max-height: min(44vh, 390px); }
 
+#mes-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-height: none;
+  overflow: visible;
+  gap: 6px;
+  padding: 0;
+}
+
+#mes-filters .filter-btn {
+  padding: 6px 4px;
+  font-size: .73rem;
+  text-align: center;
+}
+
+#mes-filters .filter-btn[data-mes="Todos"] {
+  grid-column: 1 / -1;
+}
+
 .filter-btn {
   background: none;
   border: 1px solid #dde1e7;
@@ -518,6 +537,41 @@ thead th {
 tbody tr:nth-child(even) { background: #eef4fb; }
 tbody tr:hover { background: #d6e8f7; }
 tbody td { padding: 7px 10px; border-bottom: 1px solid #dde6f0; white-space: nowrap; }
+
+.table-expand-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.table-expand-button:focus-visible {
+  outline: 2px solid var(--azul-cl);
+  outline-offset: 2px;
+}
+
+.table-expand-icon {
+  display: inline-flex;
+  width: 15px;
+  height: 15px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  background: rgba(31, 78, 121, .1);
+  color: var(--azul-cl);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.table-municipality-row td:first-child {
+  padding-left: 36px;
+}
 
 .pct-bar {
   display: flex;

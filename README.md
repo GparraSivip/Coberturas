@@ -28,7 +28,7 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 
 Los filtros de zona (Vacunación / Identificación) y tipo de cobertura (Animales / Predios) actualizan conjuntamente los KPI, gráficos, mapa y tabla. El control dentro del mapa alterna entre cobertura por departamento y por municipio sin cambiar los demás filtros. Al seleccionar un departamento en la vista departamental, el mapa se acerca a sus municipios; usa `Volver a Departamentos` para regresar. Esta exploración solo afecta el mapa. Pasa el cursor sobre una zona para consultar los valores. Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
 
-La tabla ajusta sus columnas al contenido y muestra las columnas correspondientes a la métrica seleccionada. En Animales, el inventario de Vacunación se divide entre dos por la evaluación semestral; Identificación conserva el inventario anual completo.
+La tabla permite desplegar los municipios de cada departamento en orden alfabético y muestra en paralelo inventario, actividad y cobertura de animales y predios. En Animales, el inventario de Vacunación se divide entre dos por la evaluación semestral; Identificación conserva el inventario anual completo.
 
 ---
 

@@ -36,6 +36,7 @@ let geoDepartamentos = null;
 let geoDepartamentosPromise = null;
 let mapaVistaActual = null;
 let mapaRenderVersion = 0;
+let departamentoTablaExpandido = null;
 
 /* =========================================================
    ARRANQUE
@@ -339,12 +340,18 @@ function updateDashboardLabels() {
   $('barras-titulo').textContent = `${inventario} vs. ${actividad} — Top 15 departamentos`;
   $('tendencia-titulo').textContent = `Comparativo mensual — ${actividad}`;
   actualizarControlesMapa();
+  const actividadAnimales = state.zona === 'Identificación'
+    ? 'Animales identificados'
+    : 'Animales vacunados';
   $('tabla-head').innerHTML = `
     <tr>
-      <th>Departamento</th>
-      <th style="text-align:right">${inventario}</th>
-      <th style="text-align:right">${actividad}</th>
-      <th style="text-align:right">Cobertura de ${sujetos} (%)</th>
+      <th>Departamento / Municipio</th>
+      <th style="text-align:right">Inventario de animales</th>
+      <th style="text-align:right">${actividadAnimales}</th>
+      <th style="text-align:right">Cobertura de animales (%)</th>
+      <th style="text-align:right">Inventario de predios</th>
+      <th style="text-align:right">Predios visitados</th>
+      <th style="text-align:right">Cobertura de predios (%)</th>
     </tr>`;
 }
 
@@ -920,55 +927,99 @@ function renderTabla(curr) {
   const porDepto = new Map();
   const inventarioProcesado = new Set();
   const prediosProcesados = new Set();
+  const municipioPorCodigo = new Map();
+
+  state.data.forEach(d => {
+    if (d.cod) {
+      municipioPorCodigo.set(String(d.cod), {
+        depto: d.depto,
+        mcpo: d.mcpo,
+      });
+    }
+  });
+
+  function obtenerDepartamento(depto) {
+    const deptoKey = normalizarDepto(depto);
+    if (!porDepto.has(deptoKey)) {
+      porDepto.set(deptoKey, {
+        depto, inv: 0, vacun: 0, predios: 0, vacPred: 0, municipios: new Map(),
+      });
+    }
+    return porDepto.get(deptoKey);
+  }
+
+  function obtenerMunicipio(depto, mcpo, cod) {
+    const departamento = obtenerDepartamento(depto);
+    const municipioKey = String(cod || normalizarMunicipio(mcpo));
+    if (!departamento.municipios.has(municipioKey)) {
+      departamento.municipios.set(municipioKey, {
+        mcpo: String(mcpo || '').replace(/\s+(ZC|ZE|ZL1|ZL2)$/i, '').trim(),
+        inv: 0, vacun: 0, predios: 0, vacPred: 0,
+      });
+    }
+    return departamento.municipios.get(municipioKey);
+  }
 
   filtrarInventario()
     .forEach(d => {
-      const deptoKey = normalizarDepto(d.depto);
-      if (!porDepto.has(deptoKey)) {
-        porDepto.set(deptoKey, {
-          depto: d.depto, inv: 0, vacun: 0, predios: 0, vacPred: 0,
-        });
-      }
-      const item = porDepto.get(deptoKey);
+      const item = obtenerDepartamento(d.depto);
       const codigo = d.cod || `${d.depto}|${d.mcpo}`;
       const keyInventario = `${codigo}|${d.zonaInv}`;
       if (!inventarioProcesado.has(keyInventario)) {
         item.inv += d.inv || 0;
+        const ubicacion = municipioPorCodigo.get(String(d.cod));
+        if (ubicacion) {
+          obtenerMunicipio(ubicacion.depto, ubicacion.mcpo, d.cod).inv += d.inv || 0;
+        }
         inventarioProcesado.add(keyInventario);
       }
     });
 
   filtrarInventario()
     .forEach(d => {
-      const deptoKey = normalizarDepto(d.depto);
-      const item = porDepto.get(deptoKey);
+      const item = obtenerDepartamento(d.depto);
       const codigo = d.cod || `${d.depto}|${d.mcpo}`;
       if (!prediosProcesados.has(codigo)) {
         item.predios += d.predios || 0;
+        const ubicacion = municipioPorCodigo.get(String(d.cod));
+        if (ubicacion) {
+          obtenerMunicipio(ubicacion.depto, ubicacion.mcpo, d.cod).predios += d.predios || 0;
+        }
         prediosProcesados.add(codigo);
       }
     });
 
   curr.forEach(d => {
-    const deptoKey = normalizarDepto(d.depto);
-    if (!porDepto.has(deptoKey)) {
-      porDepto.set(deptoKey, {
-        depto: d.depto, inv: 0, vacun: 0, predios: 0, vacPred: 0,
-      });
-    }
-    const item = porDepto.get(deptoKey);
+    const item = obtenerDepartamento(d.depto);
     item.depto = d.depto;
     item.vacun += d.vacun;
     item.vacPred += d.vacPred;
+    const municipio = obtenerMunicipio(d.depto, d.mcpo, d.cod);
+    municipio.vacun += d.vacun;
+    municipio.vacPred += d.vacPred;
   });
 
   if (state.zona === 'Vacunación') {
-    porDepto.forEach(item => { item.inv /= 2; });
+    porDepto.forEach(item => {
+      item.inv /= 2;
+      item.municipios.forEach(municipio => { municipio.inv /= 2; });
+    });
   }
 
-  const rows = [...porDepto.values()]
-    .map(v => ({
+  const rows = [...porDepto.entries()]
+    .map(([deptoKey, v]) => ({
       ...v,
+      deptoKey,
+      municipios: [...v.municipios.values()]
+        .map(municipio => ({
+          ...municipio,
+          cobAnim: municipio.inv > 0 ? municipio.vacun / municipio.inv * 100 : 0,
+          cobPred: municipio.predios > 0 ? municipio.vacPred / municipio.predios * 100 : 0,
+        }))
+        .sort((a, b) => a.mcpo.localeCompare(b.mcpo, 'es', {
+          sensitivity: 'base',
+          numeric: true,
+        })),
       cobAnim: v.inv > 0 ? v.vacun / v.inv * 100 : 0,
       cobPred: v.predios > 0 ? v.vacPred / v.predios * 100 : 0,
     }))
@@ -976,6 +1027,10 @@ function renderTabla(curr) {
       sensitivity: 'base',
       numeric: true,
     }));
+
+  if (!rows.some(row => row.deptoKey === departamentoTablaExpandido)) {
+    departamentoTablaExpandido = null;
+  }
 
   const total = rows.reduce((acc, r) => ({
     inv: acc.inv + r.inv,
@@ -994,19 +1049,55 @@ function drawTable(rows, total) {
   const tbody = $('tabla-body');
   if (!tbody) return;
 
-  const esAnimales = state.metrica === 'Animales';
-  const inventario = row => esAnimales ? row.inv : row.predios;
-  const actividad = row => esAnimales ? row.vacun : row.vacPred;
-  const cobertura = row => esAnimales ? row.cobAnim : row.cobPred;
+  tbody.innerHTML = rows.map((r, index) => {
+    const expandido = departamentoTablaExpandido === r.deptoKey;
+    const filaDepartamento = `
+      <tr>
+        <td>
+          <button type="button" class="table-expand-button" data-depto-index="${index}"
+                  aria-expanded="${expandido}"
+                  aria-label="${expandido ? 'Ocultar' : 'Mostrar'} municipios de ${r.depto}">
+            <span class="table-expand-icon" aria-hidden="true">${expandido ? '−' : '+'}</span>
+            <span>${r.depto}</span>
+          </button>
+        </td>
+        <td style="text-align:right">${fmtInventario(r.inv)}</td>
+        <td style="text-align:right">${fmt(r.vacun)}</td>
+        <td>${pctBar(r.cobAnim)}</td>
+        <td style="text-align:right">${fmtInventario(r.predios)}</td>
+        <td style="text-align:right">${fmt(r.vacPred)}</td>
+        <td>${pctBar(r.cobPred)}</td>
+      </tr>`;
+    if (!expandido) return filaDepartamento;
 
-  tbody.innerHTML = rows.map(r => `
-    <tr>
-      <td>${r.depto}</td>
-      <td style="text-align:right">${fmtInventario(inventario(r))}</td>
-      <td style="text-align:right">${fmt(actividad(r))}</td>
-      <td>${pctBar(cobertura(r))}</td>
-    </tr>
-  `).join('');
+    const filasMunicipios = r.municipios.map(municipio => `
+      <tr class="table-municipality-row">
+        <td>${municipio.mcpo}</td>
+        <td style="text-align:right">${fmtInventario(municipio.inv)}</td>
+        <td style="text-align:right">${fmt(municipio.vacun)}</td>
+        <td>${pctBar(municipio.cobAnim)}</td>
+        <td style="text-align:right">${fmtInventario(municipio.predios)}</td>
+        <td style="text-align:right">${fmt(municipio.vacPred)}</td>
+        <td>${pctBar(municipio.cobPred)}</td>
+      </tr>
+    `).join('');
+    return filaDepartamento + filasMunicipios;
+  }).join('');
+
+  tbody.querySelectorAll('.table-expand-button').forEach(button => {
+    button.addEventListener('click', () => {
+      const index = Number(button.dataset.deptoIndex);
+      const row = rows[index];
+      if (!row) return;
+      departamentoTablaExpandido =
+        departamentoTablaExpandido === row.deptoKey ? null : row.deptoKey;
+      drawTable(rows, total);
+      const focusedButton = tbody.querySelector(
+        `.table-expand-button[data-depto-index="${index}"]`
+      );
+      if (focusedButton) focusedButton.focus();
+    });
+  });
 
   // Fila total
   const tfoot = $('tabla-foot');
@@ -1014,9 +1105,12 @@ function drawTable(rows, total) {
     tfoot.innerHTML = `
       <tr style="font-weight:700; background:#d6e8f7;">
         <td>TOTAL</td>
-        <td style="text-align:right">${fmtInventario(inventario(total))}</td>
-        <td style="text-align:right">${fmt(actividad(total))}</td>
-        <td>${pctBar(cobertura(total))}</td>
+        <td style="text-align:right">${fmtInventario(total.inv)}</td>
+        <td style="text-align:right">${fmt(total.vacun)}</td>
+        <td>${pctBar(total.cobAnim)}</td>
+        <td style="text-align:right">${fmtInventario(total.predios)}</td>
+        <td style="text-align:right">${fmt(total.vacPred)}</td>
+        <td>${pctBar(total.cobPred)}</td>
       </tr>`;
   }
 }
