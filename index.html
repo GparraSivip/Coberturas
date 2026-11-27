@@ -46,13 +46,25 @@
   <!-- MAIN -->
   <main>
 
-    <!-- ZONA TABS -->
-    <div class="zona-tabs" id="zona-tabs"></div>
+    <!-- FILTROS DE ZONA Y MÉTRICA -->
+    <div class="dashboard-filters">
+      <section class="selector-panel">
+        <h2>Zona</h2>
+        <div class="zona-tabs" id="zona-tabs" role="group" aria-label="Filtrar por zona"></div>
+      </section>
+      <section class="selector-panel">
+        <h2>Mostrar</h2>
+        <div class="metrica-tabs" role="group" aria-label="Filtrar por tipo de cobertura">
+          <button type="button" class="metrica-tab active" data-metrica="Animales" aria-pressed="true">Animales</button>
+          <button type="button" class="metrica-tab" data-metrica="Predios" aria-pressed="false">Predios</button>
+        </div>
+      </section>
+    </div>
 
     <!-- KPIs -->
     <div class="kpi-row">
       <div class="kpi-card">
-        <div class="kpi-label">Inventario</div>
+        <div class="kpi-label" id="kpi-inventario-label">Inventario de animales</div>
         <div class="kpi-value" id="kpi-inventario">—</div>
       </div>
       <div class="kpi-card">
@@ -60,7 +72,7 @@
         <div class="kpi-value" id="kpi-vacunados">—</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">% Cobertura</div>
+        <div class="kpi-label" id="kpi-cobertura-label">Cobertura de animales</div>
         <div class="kpi-value" id="kpi-cobertura">—</div>
       </div>
     </div>
@@ -70,15 +82,15 @@
 
       <!-- Gauge cobertura -->
       <div class="chart-card">
-        <h2>Cobertura Nacional</h2>
+        <h2 id="gauge-titulo">Cobertura nacional de animales</h2>
         <div class="gauge-wrap">
           <canvas id="gaugeChart"></canvas>
         </div>
       </div>
 
-      <!-- Barras inventario vs vacunados -->
+      <!-- Barras inventario vs actividad -->
       <div class="chart-card">
-        <h2 id="barras-titulo">Inventario vs. Animales vacunados — Top 15 departamentos</h2>
+        <h2 id="barras-titulo">Inventario de animales vs. Animales vacunados — Top 15 departamentos</h2>
         <div class="chart-wrap">
           <canvas id="barrasChart"></canvas>
         </div>
@@ -87,7 +99,7 @@
       <!-- Tendencia anual — ancho completo -->
       <div class="chart-card full-width">
         <h2 id="tendencia-titulo">Comparativo mensual</h2>
-        <div class="chart-wrap" style="height:300px">
+        <div class="chart-wrap tendencia-wrap">
           <canvas id="tendenciaChart"></canvas>
         </div>
       </div>
@@ -102,17 +114,7 @@
       </div>
       <div class="table-wrap">
         <table>
-          <thead>
-            <tr>
-              <th>Departamento</th>
-              <th style="text-align:right">Inventario</th>
-              <th id="tabla-animales-header" style="text-align:right">Animales vacunados</th>
-              <th style="text-align:right">Cobertura de animales (%)</th>
-              <th style="text-align:right">Predios</th>
-              <th style="text-align:right">Predios visitados</th>
-              <th style="text-align:right">Cobertura de predios (%)</th>
-            </tr>
-          </thead>
+          <thead id="tabla-head"></thead>
           <tbody id="tabla-body"></tbody>
           <tfoot id="tabla-foot"></tfoot>
         </table>

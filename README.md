@@ -26,9 +26,9 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 
 ## Filtros del dashboard
 
-Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
+Los filtros de zona (Vacunación / Identificación) y tipo de cobertura (Animales / Predios) actualizan conjuntamente los KPI, gráficos y tabla. Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
 
-La tabla ajusta sus columnas al contenido y cambia la columna de animales entre "Animales vacunados" y "Animales identificados" según la zona.
+La tabla ajusta sus columnas al contenido y muestra las columnas correspondientes a la métrica seleccionada. En Animales, el inventario de Vacunación se divide entre dos por la evaluación semestral; Identificación conserva el inventario anual completo.
 
 ---
 

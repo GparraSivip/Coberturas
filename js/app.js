@@ -12,6 +12,7 @@ const state = {
   data:        [],     // todos los registros
   inventario:  [],     // inventario consolidado por municipio y zona
   zona:        'Vacunación',
+  metrica:     'Animales',
   meses:       [],
   departamentos: [],
   añoActual:   null,
@@ -51,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       buildSidebar();
       buildZonaTabs();
+      buildMetricaTabs();
       render();
       $('loading').classList.add('hidden');
     })
@@ -139,6 +141,12 @@ function buildZonaTabs() {
   });
 }
 
+function buildMetricaTabs() {
+  document.querySelectorAll('.metrica-tab').forEach(button => {
+    button.addEventListener('click', () => setMetrica(button.dataset.metrica));
+  });
+}
+
 /* =========================================================
    FILTROS
    ========================================================= */
@@ -170,6 +178,16 @@ function setZona(z) {
   state.zona = z;
   document.querySelectorAll('.zona-tab').forEach(b => {
     b.classList.toggle('active', b.textContent === z);
+  });
+  render();
+}
+
+function setMetrica(metrica) {
+  state.metrica = metrica;
+  document.querySelectorAll('.metrica-tab').forEach(button => {
+    const active = button.dataset.metrica === metrica;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
   });
   render();
 }
@@ -214,6 +232,16 @@ function sumarInventarioAnimales(rows) {
 }
 
 function inventarioSegunMedida(rows) {
+  if (state.metrica === 'Predios') {
+    const prediosProcesados = new Set();
+    return rows.reduce((total, d) => {
+      const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+      if (prediosProcesados.has(codigo)) return total;
+      prediosProcesados.add(codigo);
+      return total + (d.predios || 0);
+    }, 0);
+  }
+
   const total = sumarInventarioAnimales(rows);
   return state.zona === 'Vacunación' ? total / 2 : total;
 }
@@ -222,7 +250,7 @@ function inventarioSegunMedida(rows) {
    RENDER PRINCIPAL
    ========================================================= */
 function render() {
-  updateZoneLabels();
+  updateDashboardLabels();
   const datosCurr = filtrar(state.añoActual, 'Todos');
 
   renderKPIs(datosCurr);
@@ -233,16 +261,39 @@ function render() {
 }
 
 function nombreActividad() {
+  if (state.metrica === 'Predios') return 'Predios visitados';
   return state.zona === 'Identificación'
     ? 'Animales identificados'
     : 'Animales vacunados';
 }
 
-function updateZoneLabels() {
+function nombreInventario() {
+  return state.metrica === 'Predios'
+    ? 'Predios en inventario'
+    : 'Inventario de animales';
+}
+
+function valorActividad(registro) {
+  return state.metrica === 'Predios' ? registro.vacPred : registro.vacun;
+}
+
+function updateDashboardLabels() {
   const actividad = nombreActividad();
+  const sujetos = state.metrica === 'Predios' ? 'predios' : 'animales';
+  const inventario = nombreInventario();
+  $('kpi-inventario-label').textContent = inventario;
   $('kpi-actividad-label').textContent = actividad;
-  $('barras-titulo').textContent = `Inventario vs. ${actividad} — Top 15 departamentos`;
-  $('tabla-animales-header').textContent = actividad;
+  $('kpi-cobertura-label').textContent = `Cobertura de ${sujetos}`;
+  $('gauge-titulo').textContent = `Cobertura nacional de ${sujetos}`;
+  $('barras-titulo').textContent = `${inventario} vs. ${actividad} — Top 15 departamentos`;
+  $('tendencia-titulo').textContent = `Comparativo mensual — ${actividad}`;
+  $('tabla-head').innerHTML = `
+    <tr>
+      <th>Departamento</th>
+      <th style="text-align:right">${inventario}</th>
+      <th style="text-align:right">${actividad}</th>
+      <th style="text-align:right">Cobertura de ${sujetos} (%)</th>
+    </tr>`;
 }
 
 /* =========================================================
@@ -250,11 +301,11 @@ function updateZoneLabels() {
    ========================================================= */
 function renderKPIs(curr) {
   const inv = inventarioSegunMedida(filtrarInventario());
-  const vacun = curr.reduce((s, d) => s + d.vacun, 0);
-  const cob   = inv > 0 ? (vacun / inv * 100) : 0;
+  const actividad = curr.reduce((total, registro) => total + valorActividad(registro), 0);
+  const cob = inv > 0 ? (actividad / inv * 100) : 0;
 
   $('kpi-inventario').textContent = fmtInventario(inv);
-  $('kpi-vacunados').textContent  = fmt(vacun);
+  $('kpi-vacunados').textContent  = fmt(actividad);
   $('kpi-cobertura').textContent  = cob.toFixed(1) + '%';
 }
 
@@ -263,8 +314,8 @@ function renderKPIs(curr) {
    ========================================================= */
 function renderGauge(curr) {
   const inv = inventarioSegunMedida(filtrarInventario());
-  const vacun = curr.reduce((s, d) => s + d.vacun, 0);
-  const cob   = inv > 0 ? Math.min((vacun / inv * 100), 200) : 0;
+  const actividad = curr.reduce((total, registro) => total + valorActividad(registro), 0);
+  const cob = inv > 0 ? Math.min((actividad / inv * 100), 200) : 0;
 
   const ctx = $('gaugeChart');
   if (!ctx) return;
@@ -314,7 +365,7 @@ function renderGauge(curr) {
         ctx.fillText(cob.toFixed(1) + '%', cx, cy);
         ctx.font = '.7rem Segoe UI, sans-serif';
         ctx.fillStyle = '#7f8c8d';
-        ctx.fillText('Cobertura total', cx, cy + 28);
+        ctx.fillText(`Cobertura de ${state.metrica.toLowerCase()}`, cx, cy + 28);
         ctx.restore();
       }
     }]
@@ -332,8 +383,7 @@ function renderTendencia() {
   function porMes(ano) {
     return MESES_ORDER.map(m => {
       const rows = filtrar(ano, m);
-      const vacun = rows.reduce((s, d) => s + d.vacun, 0);
-      return vacun; // total animales vacunados ese mes
+      return rows.reduce((total, registro) => total + valorActividad(registro), 0);
     });
   }
 
@@ -376,7 +426,7 @@ function renderTendencia() {
         legend: { position: 'top', labels: { font: { size: 11 } } },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)} animales`
+            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)} ${state.metrica.toLowerCase()}`
           }
         }
       },
@@ -395,50 +445,58 @@ function renderTendencia() {
 }
 
 /* =========================================================
-   GRÁFICO BARRAS HORIZONTALES (Inventario vs Vacunados por depto)
+   GRÁFICO BARRAS HORIZONTALES (Inventario vs actividad por departamento)
    ========================================================= */
 function renderBarras(curr) {
   const ctx = $('barrasChart');
   if (!ctx) return;
 
   const porDepto = new Map();
-  const inventarioProcesado = new Set();
-  filtrarInventario()
-    .forEach(d => {
-      const deptoKey = normalizarDepto(d.depto);
-      if (!porDepto.has(deptoKey)) {
-        porDepto.set(deptoKey, { depto: d.depto, inv: 0, vacun: 0 });
-      }
-      const item = porDepto.get(deptoKey);
-      const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+  const inventarioAnimalesProcesado = new Set();
+  const inventarioPrediosProcesado = new Set();
+  const esAnimales = state.metrica === 'Animales';
+
+  filtrarInventario().forEach(d => {
+    const deptoKey = normalizarDepto(d.depto);
+    if (!porDepto.has(deptoKey)) {
+      porDepto.set(deptoKey, { depto: d.depto, inventario: 0, actividad: 0 });
+    }
+    const item = porDepto.get(deptoKey);
+    const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+    if (esAnimales) {
       const key = `${codigo}|${d.zonaInv}`;
-      if (!inventarioProcesado.has(key)) {
-        item.inv += d.inv || 0;
-        inventarioProcesado.add(key);
+      if (!inventarioAnimalesProcesado.has(key)) {
+        item.inventario += d.inv || 0;
+        inventarioAnimalesProcesado.add(key);
       }
-    });
+    } else if (!inventarioPrediosProcesado.has(codigo)) {
+      item.inventario += d.predios || 0;
+      inventarioPrediosProcesado.add(codigo);
+    }
+  });
 
   curr.forEach(d => {
     const deptoKey = normalizarDepto(d.depto);
     if (!porDepto.has(deptoKey)) {
-      porDepto.set(deptoKey, { depto: d.depto, inv: 0, vacun: 0 });
+      porDepto.set(deptoKey, { depto: d.depto, inventario: 0, actividad: 0 });
     }
-    porDepto.get(deptoKey).depto = d.depto;
-    porDepto.get(deptoKey).vacun += d.vacun;
+    const item = porDepto.get(deptoKey);
+    item.depto = d.depto;
+    item.actividad += valorActividad(d);
   });
 
-  if (state.zona === 'Vacunación') {
-    porDepto.forEach(item => { item.inv /= 2; });
+  if (esAnimales && state.zona === 'Vacunación') {
+    porDepto.forEach(item => { item.inventario /= 2; });
   }
 
   // Ordenar por inventario desc, tomar top 15
   const sorted = [...porDepto.entries()]
-    .sort((a, b) => b[1].inv - a[1].inv)
+    .sort((a, b) => b[1].inventario - a[1].inventario)
     .slice(0, 15);
 
   const labels = sorted.map(([, v]) => v.depto);
-  const invs   = sorted.map(([, v]) => v.inv);
-  const vacuns = sorted.map(([, v]) => v.vacun);
+  const inventarios = sorted.map(([, v]) => v.inventario);
+  const actividades = sorted.map(([, v]) => v.actividad);
 
   if (chartBarras) chartBarras.destroy();
   chartBarras = new Chart(ctx, {
@@ -447,14 +505,14 @@ function renderBarras(curr) {
       labels,
       datasets: [
         {
-          label: 'Inventario',
-          data: invs,
+          label: nombreInventario(),
+          data: inventarios,
           backgroundColor: 'rgba(74,144,217,.75)',
           borderRadius: 4,
         },
         {
           label: nombreActividad(),
-          data: vacuns,
+          data: actividades,
           backgroundColor: 'rgba(26,58,92,.85)',
           borderRadius: 4,
         }
@@ -470,7 +528,7 @@ function renderBarras(curr) {
         tooltip: {
           callbacks: {
             label: ctx => ` ${ctx.dataset.label}: ${
-              ctx.dataset.label === 'Inventario' ? fmtInventario(ctx.raw) : fmt(ctx.raw)
+              ctx.dataset.label === nombreInventario() ? fmtInventario(ctx.raw) : fmt(ctx.raw)
             }`
           }
         }
@@ -575,15 +633,17 @@ function drawTable(rows, total) {
   const tbody = $('tabla-body');
   if (!tbody) return;
 
+  const esAnimales = state.metrica === 'Animales';
+  const inventario = row => esAnimales ? row.inv : row.predios;
+  const actividad = row => esAnimales ? row.vacun : row.vacPred;
+  const cobertura = row => esAnimales ? row.cobAnim : row.cobPred;
+
   tbody.innerHTML = rows.map(r => `
     <tr>
       <td>${r.depto}</td>
-      <td style="text-align:right">${fmtInventario(r.inv)}</td>
-      <td style="text-align:right">${fmt(r.vacun)}</td>
-      <td>${pctBar(r.cobAnim)}</td>
-      <td style="text-align:right">${fmt(r.predios)}</td>
-      <td style="text-align:right">${fmt(r.vacPred)}</td>
-      <td>${pctBar(r.cobPred)}</td>
+      <td style="text-align:right">${fmtInventario(inventario(r))}</td>
+      <td style="text-align:right">${fmt(actividad(r))}</td>
+      <td>${pctBar(cobertura(r))}</td>
     </tr>
   `).join('');
 
@@ -593,12 +653,9 @@ function drawTable(rows, total) {
     tfoot.innerHTML = `
       <tr style="font-weight:700; background:#d6e8f7;">
         <td>TOTAL</td>
-        <td style="text-align:right">${fmtInventario(total.inv)}</td>
-        <td style="text-align:right">${fmt(total.vacun)}</td>
-        <td>${pctBar(total.cobAnim)}</td>
-        <td style="text-align:right">${fmt(total.predios)}</td>
-        <td style="text-align:right">${fmt(total.vacPred)}</td>
-        <td>${pctBar(total.cobPred)}</td>
+        <td style="text-align:right">${fmtInventario(inventario(total))}</td>
+        <td style="text-align:right">${fmt(actividad(total))}</td>
+        <td>${pctBar(cobertura(total))}</td>
       </tr>`;
   }
 }
