@@ -224,9 +224,8 @@ function inventarioSegunMedida(rows) {
 function render() {
   updateZoneLabels();
   const datosCurr = filtrar(state.añoActual, 'Todos');
-  const datosAnt  = filtrar(state.añoAnterior, 'Todos');
 
-  renderKPIs(datosCurr, datosAnt);
+  renderKPIs(datosCurr);
   renderGauge(datosCurr);
   renderTendencia();
   renderBarras(datosCurr);
@@ -249,22 +248,14 @@ function updateZoneLabels() {
 /* =========================================================
    KPIs
    ========================================================= */
-function renderKPIs(curr, ant) {
+function renderKPIs(curr) {
   const inv = inventarioSegunMedida(filtrarInventario());
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? (vacun / inv * 100) : 0;
 
-  const vacunAnt = ant.reduce((s, d) => s + d.vacun, 0);
-
-  const delta = vacun - vacunAnt;
-  const signo = delta >= 0 ? '+' : '';
-
   $('kpi-inventario').textContent = fmtInventario(inv);
   $('kpi-vacunados').textContent  = fmt(vacun);
   $('kpi-cobertura').textContent  = cob.toFixed(1) + '%';
-  $('kpi-delta').textContent      = signo + fmt(delta);
-  $('kpi-delta').style.color      = delta >= 0 ? '#27ae60' : '#2563a8';
-  $('kpi-año').textContent = `${state.añoActual} vs ${state.añoAnterior}`;
 }
 
 /* =========================================================
@@ -562,7 +553,10 @@ function renderTabla(curr) {
       cobAnim: v.inv > 0 ? v.vacun / v.inv * 100 : 0,
       cobPred: v.predios > 0 ? v.vacPred / v.predios * 100 : 0,
     }))
-    .sort((a, b) => b.inv - a.inv);
+    .sort((a, b) => a.depto.localeCompare(b.depto, 'es', {
+      sensitivity: 'base',
+      numeric: true,
+    }));
 
   const total = rows.reduce((acc, r) => ({
     inv: acc.inv + r.inv,

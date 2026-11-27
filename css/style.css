@@ -168,9 +168,13 @@ main {
 /* ===== KPI ROW ===== */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 20px;
+}
+
+@media (max-width: 540px) {
+  .kpi-row { grid-template-columns: 1fr; }
 }
 
 .kpi-card {
@@ -182,7 +186,6 @@ main {
 }
 .kpi-card .kpi-label { font-size: .72rem; color: #7f8c8d; text-transform: uppercase; letter-spacing: .05em; }
 .kpi-card .kpi-value { font-size: 1.6rem; font-weight: 800; color: var(--rojo); line-height: 1.2; margin: 4px 0; }
-.kpi-card .kpi-sub   { font-size: .75rem; color: #95a5a6; }
 
 /* ===== GRID DE GRÁFICOS ===== */
 .charts-grid {
