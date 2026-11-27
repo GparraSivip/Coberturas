@@ -274,6 +274,84 @@ main {
   grid-column: 1 / -1;
 }
 
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--gris-cl);
+}
+
+.map-header h2 {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.map-view-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+}
+
+.map-view-tabs {
+  display: flex;
+  align-items: center;
+  gap: clamp(8px, 2.5vw, 36px);
+}
+
+.map-view-tab {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 4px 2px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: clamp(.78rem, 1.4vw, 1.08rem);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.map-view-tab:hover,
+.map-view-tab.active {
+  color: var(--rojo);
+}
+
+.map-view-tab.active {
+  border-bottom-color: var(--rojo);
+}
+
+.map-view-tab:focus-visible {
+  outline: 3px solid var(--azul-cl);
+  outline-offset: 3px;
+}
+
+.map-back-button {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: #fff;
+  color: #475569;
+  font: inherit;
+  font-size: .76rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.map-back-button:hover {
+  border-color: var(--rojo);
+  color: var(--rojo);
+}
+
+.map-back-button:focus-visible {
+  outline: 3px solid var(--azul-cl);
+  outline-offset: 3px;
+}
+
 .chart-wrap {
   position: relative;
   height: clamp(210px, 30vw, 260px);
@@ -301,13 +379,21 @@ main {
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
+.leaflet-container .leaflet-interactive:focus {
+  outline: none;
+}
+
+.leaflet-tooltip.municipio-tooltip,
 .leaflet-tooltip.departamento-tooltip {
   border: 0;
   border-radius: 6px;
   box-shadow: var(--sombra);
   color: var(--texto);
   font-size: .72rem;
+  line-height: 1.4;
+  max-width: 220px;
   padding: 7px 9px;
+  white-space: normal;
 }
 
 .map-legend {
@@ -554,6 +640,10 @@ footer {
   .chart-card h2, .table-card h2 { font-size: .82rem; }
   .chart-wrap { height: 220px; }
   .tendencia-wrap { height: 250px; }
+  .map-header { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .map-view-controls { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+  .map-view-tabs { width: 100%; justify-content: space-between; }
+  .map-view-tab { white-space: normal; text-align: center; }
   .table-toolbar input { min-width: 0; width: 100%; }
   table { font-size: .74rem; }
   thead th, tbody td { padding: 7px 8px; }

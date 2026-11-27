@@ -26,7 +26,7 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 
 ## Filtros del dashboard
 
-Los filtros de zona (Vacunación / Identificación) y tipo de cobertura (Animales / Predios) actualizan conjuntamente los KPI, gráficos y tabla. Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
+Los filtros de zona (Vacunación / Identificación) y tipo de cobertura (Animales / Predios) actualizan conjuntamente los KPI, gráficos, mapa y tabla. El control dentro del mapa alterna entre cobertura por departamento y por municipio sin cambiar los demás filtros. Al seleccionar un departamento en la vista departamental, el mapa se acerca a sus municipios; usa `Volver a Departamentos` para regresar. Esta exploración solo afecta el mapa. Pasa el cursor sobre una zona para consultar los valores. Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
 
 La tabla ajusta sus columnas al contenido y muestra las columnas correspondientes a la métrica seleccionada. En Animales, el inventario de Vacunación se divide entre dos por la evaluación semestral; Identificación conserva el inventario anual completo.
 
@@ -58,6 +58,10 @@ La tabla ajusta sus columnas al contenido y muestra las columnas correspondiente
 - El KPI suma `inventario animales` dentro de la categoría seleccionada. Para Vacunación divide el inventario zonal entre 2 por su evaluación semestral; para Identificación usa el inventario completo por su evaluación anual.
 
 El código municipal se relaciona con `codMcpo` de la hoja `Base`. La zona operativa se relaciona con `zona`, mientras que la pestaña del dashboard usa `zonaOrganizadas` (`Vacunación` o `Identificación`). La hoja `respaldo`, si existe, no se usa.
+
+## Mapa municipal
+
+Los límites departamentales (`data/colombia-departamentos.geojson`) y municipales (`data/municipios.geojson`) provienen de [GeoBoundaries ADM1/ADM2 para Colombia](https://www.geoboundaries.org/), basados en la cartografía del DANE (2020) y distribuidos bajo licencia [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). El archivo municipal está simplificado para su uso en el dashboard. Los nombres se relacionan con el código municipal del inventario y los registros de cobertura. Belén de Bajirá no tiene un polígono independiente en esta versión de los límites y no se representa en el mapa.
 
 ---
 

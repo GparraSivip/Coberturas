@@ -105,9 +105,22 @@
         </div>
       </div>
 
-      <!-- Mapa de calor por departamento -->
+      <!-- Mapa de calor por municipio -->
       <div class="chart-card full-width">
-        <h2 id="mapa-titulo">Cobertura por departamento</h2>
+        <div class="map-header">
+          <h2 id="mapa-titulo">Cobertura por departamento</h2>
+          <div class="map-view-controls">
+            <div class="map-view-tabs" role="group" aria-label="Vista del mapa">
+              <button type="button" class="map-view-tab active" data-vista-mapa="departamento"
+                      aria-pressed="true">Ver por Departamento</button>
+              <button type="button" class="map-view-tab" data-vista-mapa="municipio"
+                      aria-pressed="false">Ver por Municipio</button>
+            </div>
+            <button type="button" id="mapa-volver" class="map-back-button" hidden>
+              Volver a Departamentos
+            </button>
+          </div>
+        </div>
         <div id="mapaCobertura" class="map-wrap" aria-label="Mapa de cobertura por departamento"></div>
         <div class="map-legend" id="mapaLeyenda" aria-hidden="true"></div>
       </div>
@@ -134,7 +147,7 @@
 
 <!-- ===== FOOTER ===== -->
 <footer>
-  Dashboard generado con Chart.js · Datos actualizados mensualmente desde baseCobertura.xlsx
+  Dashboard con Chart.js y Leaflet · Límites municipales: GeoBoundaries (fuente DANE), CC BY 4.0
 </footer>
 
 <!-- ===== SCRIPTS ===== -->

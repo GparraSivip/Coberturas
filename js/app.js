@@ -13,6 +13,8 @@ const state = {
   inventario:  [],     // inventario consolidado por municipio y zona
   zona:        'Vacunación',
   metrica:     'Animales',
+  vistaMapa:   'departamento',
+  departamentoMapa: null,
   meses:       [],
   departamentos: [],
   añoActual:   null,
@@ -28,7 +30,12 @@ let chartBarras    = null;
 let chartGauge     = null;
 let mapaCobertura = null;
 let capaCobertura = null;
-let geoColombia = null;
+let geoMunicipios = null;
+let geoMunicipiosPromise = null;
+let geoDepartamentos = null;
+let geoDepartamentosPromise = null;
+let mapaVistaActual = null;
+let mapaRenderVersion = 0;
 
 /* =========================================================
    ARRANQUE
@@ -56,6 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
       buildSidebar();
       buildZonaTabs();
       buildMetricaTabs();
+      buildMapaTabs();
       render();
       $('loading').classList.add('hidden');
     })
@@ -148,6 +156,45 @@ function buildMetricaTabs() {
   document.querySelectorAll('.metrica-tab').forEach(button => {
     button.addEventListener('click', () => setMetrica(button.dataset.metrica));
   });
+}
+
+function buildMapaTabs() {
+  document.querySelectorAll('.map-view-tab').forEach(button => {
+    button.addEventListener('click', () => {
+      state.vistaMapa = button.dataset.vistaMapa;
+      state.departamentoMapa = null;
+      actualizarControlesMapa();
+      renderMapa(filtrar(state.añoActual, 'Todos'));
+    });
+  });
+
+  $('mapa-volver').addEventListener('click', () => {
+    state.vistaMapa = 'departamento';
+    state.departamentoMapa = null;
+    actualizarControlesMapa();
+    renderMapa(filtrar(state.añoActual, 'Todos'));
+  });
+}
+
+function actualizarControlesMapa() {
+  const vistaMunicipal = state.vistaMapa === 'municipio';
+  const vista = vistaMunicipal ? 'municipio' : 'departamento';
+  const sujetos = state.metrica === 'Predios' ? 'predios' : 'animales';
+
+  document.querySelectorAll('.map-view-tab').forEach(tab => {
+    const active = tab.dataset.vistaMapa === state.vistaMapa;
+    tab.classList.toggle('active', active);
+    tab.setAttribute('aria-pressed', String(active));
+  });
+
+  $('mapa-titulo').textContent =
+    `Mapa de cobertura de ${sujetos} por ${vista}` +
+    (state.departamentoMapa ? ` · ${state.departamentoMapa}` : '');
+  $('mapaCobertura').setAttribute(
+    'aria-label',
+    `Mapa de cobertura por ${vista}${state.departamentoMapa ? ` de ${state.departamentoMapa}` : ''}`
+  );
+  $('mapa-volver').hidden = !state.departamentoMapa;
 }
 
 /* =========================================================
@@ -291,8 +338,7 @@ function updateDashboardLabels() {
   $('gauge-titulo').textContent = `Cobertura nacional de ${sujetos}`;
   $('barras-titulo').textContent = `${inventario} vs. ${actividad} — Top 15 departamentos`;
   $('tendencia-titulo').textContent = `Comparativo mensual — ${actividad}`;
-  $('mapa-titulo').textContent =
-    `Mapa de cobertura de ${sujetos} por departamento`;
+  actualizarControlesMapa();
   $('tabla-head').innerHTML = `
     <tr>
       <th>Departamento</th>
@@ -550,22 +596,50 @@ function renderBarras(curr) {
 }
 
 /* =========================================================
-   MAPA DE CALOR POR DEPARTAMENTO (TILE MAP)
+   MAPA DE CALOR MUNICIPAL
    ========================================================= */
 function renderMapa(curr) {
   const mapa = $('mapaCobertura');
   const leyenda = $('mapaLeyenda');
   if (!mapa || !leyenda || typeof L === 'undefined') return;
+  const renderVersion = ++mapaRenderVersion;
+  const vista = state.vistaMapa;
+  const vistaMunicipal = vista === 'municipio';
 
-  const porDepto = new Map();
+  const porMunicipio = new Map();
+  const municipiosPorNombre = new Map();
   const inventarioAnimalesProcesado = new Set();
   const inventarioPrediosProcesado = new Set();
+  const municipioPorCodigo = new Map();
   const esAnimales = state.metrica === 'Animales';
 
+  state.data.forEach(d => {
+    if (d.cod) {
+      municipioPorCodigo.set(String(d.cod), {
+        depto: d.depto,
+        mcpo: d.mcpo,
+      });
+    }
+  });
+
+  function obtenerMunicipio(depto, mcpo) {
+    const nombre = normalizarMunicipio(mcpo);
+    const key = `${normalizarDepto(depto)}|${nombre}`;
+    if (!porMunicipio.has(key)) {
+      porMunicipio.set(key, {
+        depto: normalizarDepto(depto),
+        municipio: nombre,
+        actividad: 0,
+        inventario: 0,
+      });
+    }
+    return porMunicipio.get(key);
+  }
+
   filtrarInventario().forEach(d => {
-    const key = normalizarDepto(d.depto);
-    if (!porDepto.has(key)) porDepto.set(key, { inventario: 0, actividad: 0 });
-    const item = porDepto.get(key);
+    const ubicacion = municipioPorCodigo.get(String(d.cod));
+    if (!ubicacion) return;
+    const item = obtenerMunicipio(ubicacion.depto, ubicacion.mcpo);
     const codigo = d.cod || `${d.depto}|${d.mcpo}`;
 
     if (esAnimales) {
@@ -581,14 +655,33 @@ function renderMapa(curr) {
   });
 
   curr.forEach(d => {
-    const key = normalizarDepto(d.depto);
-    if (!porDepto.has(key)) porDepto.set(key, { inventario: 0, actividad: 0 });
-    porDepto.get(key).actividad += valorActividad(d);
+    obtenerMunicipio(d.depto, d.mcpo).actividad += valorActividad(d);
   });
 
   if (esAnimales && state.zona === 'Vacunación') {
-    porDepto.forEach(item => { item.inventario /= 2; });
+    porMunicipio.forEach(item => { item.inventario /= 2; });
   }
+
+  const porDepartamento = new Map();
+  porMunicipio.forEach(item => {
+    if (!porDepartamento.has(item.depto)) {
+      porDepartamento.set(item.depto, {
+        depto: item.depto,
+        actividad: 0,
+        inventario: 0,
+      });
+    }
+    const departamento = porDepartamento.get(item.depto);
+    departamento.actividad += item.actividad;
+    departamento.inventario += item.inventario;
+  });
+
+  porMunicipio.forEach(item => {
+    if (!municipiosPorNombre.has(item.municipio)) {
+      municipiosPorNombre.set(item.municipio, []);
+    }
+    municipiosPorNombre.get(item.municipio).push(item);
+  });
 
   leyenda.innerHTML = `
     <span class="map-legend-item"><span class="map-legend-swatch" style="background:#cde4f7"></span>0–25%</span>
@@ -603,71 +696,159 @@ function renderMapa(curr) {
       mapa.innerHTML = '';
       mapaCobertura = L.map(mapa, {
         scrollWheelZoom: true,
-        attributionControl: true,
+        attributionControl: false,
         zoomControl: true,
-      }).setView([4.4, -74.1], 5);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '&copy; OpenStreetMap',
-      }).addTo(mapaCobertura);
+        minZoom: 4,
+        maxZoom: 10,
+      });
     }
 
     if (capaCobertura) mapaCobertura.removeLayer(capaCobertura);
 
     capaCobertura = L.geoJSON(geojson, {
       style(feature) {
-        const nombreGeo = feature.properties.shapeName || '';
-        const key = normalizarDepto(nombreGeo);
-        const item = porDepto.get(key);
+        const { deptoKey, item } = obtenerDatosFeature(feature);
         const cobertura = item && item.inventario > 0
           ? item.actividad / item.inventario * 100
           : null;
         const seleccionado = state.departamentos.length === 0 ||
-          state.departamentos.includes(key);
+          state.departamentos.includes(deptoKey);
 
         return {
           fillColor: seleccionado ? colorCobertura(cobertura) : '#edf2f7',
-          weight: 1,
+          weight: vistaMunicipal ? .55 : 1.1,
           opacity: 1,
-          color: '#4b5563',
-          fillOpacity: seleccionado && cobertura != null ? 0.82 : 0.55,
+          color: '#526477',
+          fillOpacity: seleccionado && cobertura != null ? 0.9 : 0.48,
         };
       },
       onEachFeature(feature, layer) {
-        const nombreGeo = feature.properties.shapeName || 'Departamento';
-        const key = normalizarDepto(nombreGeo);
-        const item = porDepto.get(key);
+        const nombreGeo = feature.properties.shapeName || 'Municipio';
+        const { departamento, item } = obtenerDatosFeature(feature);
         const cobertura = item && item.inventario > 0
           ? item.actividad / item.inventario * 100
           : null;
 
-        layer.bindTooltip(
-          `<strong>${nombreGeo}</strong><br>${cobertura == null ? 'Sin datos' : cobertura.toFixed(1) + '%'}`,
-          { className: 'departamento-tooltip', sticky: true }
-        );
+        const detalle = document.createElement('div');
+        const titulo = document.createElement('strong');
+        titulo.textContent = vistaMunicipal
+          ? `${nombreGeo} · ${departamento}`
+          : nombreGeo;
+        detalle.appendChild(titulo);
+        const porcentaje = document.createElement('div');
+        porcentaje.textContent = `Cobertura: ${cobertura == null ? 'Sin datos' : cobertura.toFixed(1) + '%'}`;
+        detalle.appendChild(porcentaje);
+        if (item) {
+          const actividad = document.createElement('div');
+          actividad.textContent = `${nombreActividad()}: ${fmt(item.actividad)}`;
+          detalle.appendChild(actividad);
+          const inventario = document.createElement('div');
+          inventario.textContent = `${nombreInventario()}: ${fmt(item.inventario)}`;
+          detalle.appendChild(inventario);
+        }
+
+        layer.bindTooltip(detalle, {
+          className: vistaMunicipal ? 'municipio-tooltip' : 'departamento-tooltip',
+          sticky: true,
+        });
+
+        if (!vistaMunicipal) {
+          layer.on('click', () => {
+            state.vistaMapa = 'municipio';
+            state.departamentoMapa = nombreGeo;
+            actualizarControlesMapa();
+            renderMapa(curr);
+          });
+        }
       }
     }).addTo(mapaCobertura);
 
-    mapaCobertura.fitBounds(capaCobertura.getBounds(), { padding: [8, 8] });
+    const vistaKey = `${vista}|${state.departamentoMapa || ''}`;
+    const bounds = capaCobertura.getBounds();
+    if (vistaKey !== mapaVistaActual && bounds.isValid()) {
+      mapaCobertura.fitBounds(bounds, { padding: [12, 12] });
+      mapaVistaActual = vistaKey;
+    }
   }
 
-  if (geoColombia) {
-    dibujarMapa(geoColombia);
+  function buscarMunicipioUnico(nombre) {
+    const coincidencias = municipiosPorNombre.get(nombre) || [];
+    return coincidencias.length === 1 ? coincidencias[0] : null;
+  }
+
+  function obtenerDatosFeature(feature) {
+    const departamento = vistaMunicipal
+      ? feature.properties.department || ''
+      : feature.properties.shapeName || '';
+    const deptoKey = normalizarDepto(departamento);
+    const municipioKey = normalizarMunicipio(feature.properties.shapeName);
+    const item = vistaMunicipal
+      ? porMunicipio.get(`${deptoKey}|${municipioKey}`) || buscarMunicipioUnico(municipioKey)
+      : porDepartamento.get(deptoKey);
+    return { departamento, deptoKey, item };
+  }
+
+  let geojson = vistaMunicipal ? geoMunicipios : geoDepartamentos;
+  if (geojson) {
+    if (vistaMunicipal && state.departamentoMapa) {
+      const departamentoKey = normalizarDepto(state.departamentoMapa);
+      geojson = {
+        ...geojson,
+        features: geojson.features.filter(feature =>
+          normalizarDepto(feature.properties.department) === departamentoKey
+        ),
+      };
+    }
+    dibujarMapa(geojson);
+    return;
+  }
+
+  let geojsonPromise;
+  if (vistaMunicipal) {
+    if (!geoMunicipiosPromise) {
+      geoMunicipiosPromise = fetch('data/municipios.geojson')
+        .then(response => {
+          if (!response.ok) throw new Error(`No se pudo cargar el mapa (${response.status})`);
+          return response.json();
+        })
+        .then(data => {
+          geoMunicipios = data;
+          return data;
+        });
+    }
+    geojsonPromise = geoMunicipiosPromise;
   } else {
-    fetch('data/colombia-departamentos.geojson')
-      .then(response => {
-        if (!response.ok) throw new Error(`No se pudo cargar el mapa (${response.status})`);
-        return response.json();
-      })
+    if (!geoDepartamentosPromise) {
+      geoDepartamentosPromise = fetch('data/colombia-departamentos.geojson')
+        .then(response => {
+          if (!response.ok) throw new Error(`No se pudo cargar el mapa (${response.status})`);
+          return response.json();
+        })
+        .then(data => {
+          geoDepartamentos = data;
+          return data;
+        });
+    }
+    geojsonPromise = geoDepartamentosPromise;
+  }
+
+  geojsonPromise
       .then(geojson => {
-        geoColombia = geojson;
-        dibujarMapa(geoColombia);
+        if (renderVersion !== mapaRenderVersion) return;
+        if (vistaMunicipal && state.departamentoMapa) {
+          const departamentoKey = normalizarDepto(state.departamentoMapa);
+          geojson = {
+            ...geojson,
+            features: geojson.features.filter(feature =>
+              normalizarDepto(feature.properties.department) === departamentoKey
+            ),
+          };
+        }
+        dibujarMapa(geojson);
       })
       .catch(error => {
-        mapa.innerHTML = `<p style="padding:20px;color:#c0392b">${error.message}</p>`;
+        if (renderVersion === mapaRenderVersion) mapa.textContent = error.message;
       });
-  }
 }
 
 function colorCobertura(valor) {
@@ -690,7 +871,46 @@ function normalizarDepto(depto) {
 
   if (/^BOGOTA/.test(valor)) return 'BOGOTA';
   if (/^SAN ANDRES/.test(valor)) return 'SAN ANDRES';
+  if (/^ARCHIPIELAGO DE SAN ANDRES/.test(valor)) return 'SAN ANDRES';
   return valor;
+}
+
+function normalizarMunicipio(municipio) {
+  const valor = String(municipio || '')
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\s+(ZC|ZE|ZL1|ZL2|DC)$/i, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+D\.?\s*C\.?$/i, '')
+    .replace(/\bD\s*C\b/g, '')
+    .replace(/[^A-Z0-9]/g, '');
+  const equivalencias = {
+    BECERRIL: 'BECERRILL',
+    SANJOSEDEFRAGUA: 'SANJOSEDELFRAGUA',
+    SANANDRESDECUERQUIA: 'SANANDRES',
+    ITSMINA: 'ISTMINA',
+    CARTAGENA: 'CARTAGENADEINDIAS',
+    ELCARMEN: 'ELCARMENDECHUCURI',
+    TIQUISIO: 'TIQUISO',
+    COLOSO: 'RICAURTE',
+    SINCE: 'SANLUISDESINCE',
+    TOLU: 'SANTIAGODETOLU',
+    PIJINO: 'PIJINODELCARMEN',
+    SANSEBASTIANBUENAVISTA: 'SANSEBASTIANDEBUENAVISTA',
+    MARIQUITA: 'SANSEBASTIANDEMARIQUITA',
+    BARRANQUILLA: 'DISTRITOESPECIALINDUSTRIALYPORTUARIODEBARR',
+    SANPEDRODELOSMILAGROS: 'SANPEDRO',
+    ELTABLON: 'ELTABLONDEGOMEZ',
+    SANANTONIODETEQUENDAMA: 'SANANTONIODELTEQUENDAMA',
+    LAURIBE: 'URIBE',
+    JORDAN: 'JORDANSUBE',
+    PUEBLORICO: 'PUEBLORRICO',
+    ELPENOL: 'PENOL',
+    CANTONDELSANPABLO: 'ELCANTONDELSANPABLO',
+    COLONPUTUMAYO: 'COLON',
+  };
+  return equivalencias[valor] || valor;
 }
 
 /* =========================================================
