@@ -53,6 +53,7 @@ Los filtros de mes y departamento admiten selección múltiple y se combinan ent
 - Los animales se suman agrupando por `cod_munpio` y `zona`.
 - Cada fila representa un predio. Se cuentan filas por `cod_munpio` dentro de cada categoría: `ZC` corresponde a Vacunación y `ZE`, `ZL1` y `ZL2` a Identificación. En total, la fuente contiene 218.118 filas: 177.512 de Vacunación y 40.606 de Identificación.
 - El JSON guarda el inventario consolidado separado de las capturas mensuales, por lo que cambiar mes o año no duplica ni reduce el inventario.
+- El KPI suma `inventario animales` dentro de la categoría seleccionada. Para Vacunación divide el inventario zonal entre 2 por su evaluación semestral; para Identificación usa el inventario completo por su evaluación anual.
 
 El código municipal se relaciona con `codMcpo` de la hoja `Base`. La zona operativa se relaciona con `zona`, mientras que la pestaña del dashboard usa `zonaOrganizadas` (`Vacunación` o `Identificación`). La hoja `respaldo`, si existe, no se usa.
 

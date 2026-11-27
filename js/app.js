@@ -196,27 +196,26 @@ function filtrarInventario() {
   );
 }
 
-function agregarInventario(rows) {
+function sumarInventarioAnimales(rows) {
   const animalesProcesados = new Set();
-  const prediosProcesados = new Set();
-  const totales = { inv: 0, predios: 0 };
+  let total = 0;
 
   rows.forEach(d => {
     const codigo = d.cod || `${d.depto}|${d.mcpo}`;
     const keyAnimales = `${codigo}|${d.zonaInv}`;
 
     if (!animalesProcesados.has(keyAnimales)) {
-      totales.inv += d.inv || 0;
+      total += d.inv || 0;
       animalesProcesados.add(keyAnimales);
-    }
-
-    if (!prediosProcesados.has(codigo)) {
-      totales.predios += d.predios || 0;
-      prediosProcesados.add(codigo);
     }
   });
 
-  return totales;
+  return total;
+}
+
+function inventarioSegunMedida(rows) {
+  const total = sumarInventarioAnimales(rows);
+  return state.zona === 'Vacunación' ? total / 2 : total;
 }
 
 /* =========================================================
@@ -237,8 +236,7 @@ function render() {
    KPIs
    ========================================================= */
 function renderKPIs(curr, ant) {
-  const inventario = agregarInventario(filtrarInventario());
-  const inv = inventario.inv;
+  const inv = inventarioSegunMedida(filtrarInventario());
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? (vacun / inv * 100) : 0;
 
@@ -247,7 +245,7 @@ function renderKPIs(curr, ant) {
   const delta = vacun - vacunAnt;
   const signo = delta >= 0 ? '+' : '';
 
-  $('kpi-inventario').textContent = fmt(inv);
+  $('kpi-inventario').textContent = fmtInventario(inv);
   $('kpi-vacunados').textContent  = fmt(vacun);
   $('kpi-cobertura').textContent  = cob.toFixed(1) + '%';
   $('kpi-delta').textContent      = signo + fmt(delta);
@@ -259,7 +257,7 @@ function renderKPIs(curr, ant) {
    GAUGE
    ========================================================= */
 function renderGauge(curr) {
-  const inv = agregarInventario(filtrarInventario()).inv;
+  const inv = inventarioSegunMedida(filtrarInventario());
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? Math.min((vacun / inv * 100), 200) : 0;
 
@@ -424,6 +422,10 @@ function renderBarras(curr) {
     porDepto.get(deptoKey).vacun += d.vacun;
   });
 
+  if (state.zona === 'Vacunación') {
+    porDepto.forEach(item => { item.inv /= 2; });
+  }
+
   // Ordenar por inventario desc, tomar top 15
   const sorted = [...porDepto.entries()]
     .sort((a, b) => b[1].inv - a[1].inv)
@@ -462,7 +464,9 @@ function renderBarras(curr) {
         legend: { position: 'top', labels: { font: { size: 11 } } },
         tooltip: {
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.raw)}`
+            label: ctx => ` ${ctx.dataset.label}: ${
+              ctx.dataset.label === 'Inventario' ? fmtInventario(ctx.raw) : fmt(ctx.raw)
+            }`
           }
         }
       },
@@ -508,6 +512,13 @@ function renderTabla(curr) {
         item.inv += d.inv || 0;
         inventarioProcesado.add(keyInventario);
       }
+    });
+
+  filtrarInventario()
+    .forEach(d => {
+      const deptoKey = normalizarDepto(d.depto);
+      const item = porDepto.get(deptoKey);
+      const codigo = d.cod || `${d.depto}|${d.mcpo}`;
       if (!prediosProcesados.has(codigo)) {
         item.predios += d.predios || 0;
         prediosProcesados.add(codigo);
@@ -526,6 +537,10 @@ function renderTabla(curr) {
     item.vacun += d.vacun;
     item.vacPred += d.vacPred;
   });
+
+  if (state.zona === 'Vacunación') {
+    porDepto.forEach(item => { item.inv /= 2; });
+  }
 
   const rows = [...porDepto.values()]
     .map(v => ({
@@ -555,7 +570,7 @@ function drawTable(rows, total) {
   tbody.innerHTML = rows.map(r => `
     <tr>
       <td>${r.depto}</td>
-      <td style="text-align:right">${fmt(r.inv)}</td>
+      <td style="text-align:right">${fmtInventario(r.inv)}</td>
       <td style="text-align:right">${fmt(r.vacun)}</td>
       <td>${pctBar(r.cobAnim)}</td>
       <td style="text-align:right">${fmt(r.predios)}</td>
@@ -570,7 +585,7 @@ function drawTable(rows, total) {
     tfoot.innerHTML = `
       <tr style="font-weight:700; background:#d6e8f7;">
         <td>TOTAL</td>
-        <td style="text-align:right">${fmt(total.inv)}</td>
+        <td style="text-align:right">${fmtInventario(total.inv)}</td>
         <td style="text-align:right">${fmt(total.vacun)}</td>
         <td>${pctBar(total.cobAnim)}</td>
         <td style="text-align:right">${fmt(total.predios)}</td>
@@ -607,6 +622,10 @@ document.addEventListener('DOMContentLoaded', setupSearch);
    HELPERS
    ========================================================= */
 function fmt(n) {
+  return Math.round(n).toLocaleString('es-CO');
+}
+
+function fmtInventario(n) {
   return Math.round(n).toLocaleString('es-CO');
 }
 
