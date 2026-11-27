@@ -38,6 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
       state.añoActual   = years[years.length - 1];
       state.añoAnterior = years.length > 1 ? years[years.length - 2] : years[0];
 
+      const mesActual = [...new Set(
+        data.filter(d => d.ano === state.añoActual).map(d => d.mes)
+      )]
+        .filter(m => MESES_ORDER.includes(m))
+        .sort((a, b) => MESES_ORDER.indexOf(b) - MESES_ORDER.indexOf(a))[0];
+      $('last-update-label').textContent =
+        mesActual ? `Datos al: ${mesActual} ${state.añoActual}` : `Datos al: ${state.añoActual}`;
+
       buildSidebar();
       buildZonaTabs();
       render();

@@ -2,7 +2,7 @@
 
 Dashboard web para seguimiento de coberturas de vacunación e identificación animal en Colombia.
 
-🔗 **Ver dashboard:** https://gioparramo.github.io/coberturas/
+🔗 **Ver dashboard:** https://GparraSivip.github.io/Coberturas/
 
 ---
 
