@@ -29,10 +29,18 @@
 
   <!-- SIDEBAR -->
   <aside>
-    <div>
-      <h3>Mes</h3>
-      <div class="filter-group" id="mes-filters"></div>
-    </div>
+    <section class="filter-section">
+      <h3>Meses</h3>
+      <p class="filter-help">Selecciona uno o varios</p>
+      <div class="filter-group multi-select" id="mes-filters"></div>
+    </section>
+    <section class="filter-section">
+      <h3>Departamento</h3>
+      <p class="filter-help">Puedes combinar varios</p>
+      <input type="search" id="departamento-search" class="filter-search"
+             placeholder="Buscar departamento…" aria-label="Buscar departamento" />
+      <div class="filter-group multi-select department-filters" id="departamento-filters"></div>
+    </section>
   </aside>
 
   <!-- MAIN -->
@@ -46,18 +54,15 @@
       <div class="kpi-card">
         <div class="kpi-label">Inventario</div>
         <div class="kpi-value" id="kpi-inventario">—</div>
-        <div class="kpi-sub">Animales registrados</div>
-      </div>
+    </div>
       <div class="kpi-card">
         <div class="kpi-label">Vacunados / Chapeteados</div>
         <div class="kpi-value" id="kpi-vacunados">—</div>
-        <div class="kpi-sub">Año en curso</div>
-      </div>
+    </div>
       <div class="kpi-card">
-        <div class="kpi-label">Cobertura Nacional</div>
+        <div class="kpi-label">% Cobertura</div>
         <div class="kpi-value" id="kpi-cobertura">—</div>
-        <div class="kpi-sub">Vacunados / Inventario</div>
-      </div>
+    </div>
       <div class="kpi-card">
         <div class="kpi-label">Variación vs año anterior</div>
         <div class="kpi-value" id="kpi-delta">—</div>

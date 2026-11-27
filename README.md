@@ -24,6 +24,12 @@ El dashboard se actualiza automáticamente en ~2 minutos.
 
 ---
 
+## Filtros del dashboard
+
+Los filtros de mes y departamento admiten selección múltiple y se combinan entre sí. Usa `Todos` en cada lista para quitar la selección de ese filtro; el buscador ayuda a encontrar departamentos.
+
+---
+
 ## Estructura del Excel esperada (hoja `Base`)
 
 | Columna | Descripción |

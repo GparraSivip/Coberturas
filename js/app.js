@@ -12,7 +12,8 @@ const state = {
   data:        [],     // todos los registros
   inventario:  [],     // inventario consolidado por municipio y zona
   zona:        'Vacunación',
-  mes:         'Todos',
+  meses:       [],
+  departamentos: [],
   añoActual:   null,
   añoAnterior: null,
 };
@@ -62,24 +63,66 @@ document.addEventListener('DOMContentLoaded', () => {
    CONSTRUCCIÓN DE CONTROLES
    ========================================================= */
 function buildSidebar() {
-  const container = $('mes-filters');
-  container.innerHTML = '';
-
-  // Botón "Todos"
-  const btn = document.createElement('button');
-  btn.className = 'filter-btn active';
-  btn.textContent = 'Todos';
-  btn.dataset.mes = 'Todos';
-  btn.addEventListener('click', () => setMes('Todos'));
-  container.appendChild(btn);
+  const mesContainer = $('mes-filters');
+  mesContainer.innerHTML = '';
+  appendFilterButton(mesContainer, 'Todos', 'mes', 'Todos', () => setMes('Todos'));
 
   MESES_ORDER.forEach(m => {
-    const b = document.createElement('button');
-    b.className = 'filter-btn';
-    b.textContent = m;
-    b.dataset.mes = m;
-    b.addEventListener('click', () => setMes(m));
-    container.appendChild(b);
+    appendFilterButton(mesContainer, m, 'mes', m, () => setMes(m));
+  });
+
+  const deptoContainer = $('departamento-filters');
+  deptoContainer.innerHTML = '';
+  appendFilterButton(deptoContainer, 'Todos', 'departamento', 'Todos',
+    () => setDepartamento('Todos'));
+
+  const departamentos = new Map();
+  state.inventario.forEach(d => {
+    const key = normalizarDepto(d.depto);
+    if (key && !departamentos.has(key)) departamentos.set(key, d.depto);
+  });
+  state.data.forEach(d => {
+    const key = normalizarDepto(d.depto);
+    if (key) departamentos.set(key, d.depto);
+  });
+
+  [...departamentos.entries()]
+    .sort((a, b) => a[1].localeCompare(b[1], 'es'))
+    .forEach(([key, label]) => {
+      appendFilterButton(deptoContainer, label, 'departamento', key,
+        () => setDepartamento(key));
+    });
+
+  $('departamento-search').addEventListener('input', filterDepartmentOptions);
+  updateSelectionButtons('mes-filters', 'mes', state.meses);
+  updateSelectionButtons('departamento-filters', 'departamento', state.departamentos);
+}
+
+function appendFilterButton(container, label, type, value, onClick) {
+  const button = document.createElement('button');
+  button.className = 'filter-btn';
+  button.textContent = label;
+  button.dataset[type] = value;
+  button.setAttribute('aria-pressed', 'false');
+  button.addEventListener('click', onClick);
+  container.appendChild(button);
+}
+
+function updateSelectionButtons(containerId, type, selected) {
+  const allSelected = selected.length === 0;
+  $(containerId).querySelectorAll('button').forEach(button => {
+    const isAll = button.dataset[type] === 'Todos';
+    const active = isAll ? allSelected : selected.includes(button.dataset[type]);
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+}
+
+function filterDepartmentOptions() {
+  const query = normalizarDepto($('departamento-search').value);
+  $('departamento-filters').querySelectorAll('button').forEach(button => {
+    button.hidden = button.dataset.departamento !== 'Todos' &&
+      !normalizarDepto(button.textContent).includes(query);
   });
 }
 
@@ -100,10 +143,26 @@ function buildZonaTabs() {
    FILTROS
    ========================================================= */
 function setMes(m) {
-  state.mes = m;
-  document.querySelectorAll('.filter-btn').forEach(b => {
-    b.classList.toggle('active', b.dataset.mes === m);
-  });
+  if (m === 'Todos') {
+    state.meses = [];
+  } else if (state.meses.includes(m)) {
+    state.meses = state.meses.filter(mes => mes !== m);
+  } else {
+    state.meses = [...state.meses, m];
+  }
+  updateSelectionButtons('mes-filters', 'mes', state.meses);
+  render();
+}
+
+function setDepartamento(depto) {
+  if (depto === 'Todos') {
+    state.departamentos = [];
+  } else if (state.departamentos.includes(depto)) {
+    state.departamentos = state.departamentos.filter(item => item !== depto);
+  } else {
+    state.departamentos = [...state.departamentos, depto];
+  }
+  updateSelectionButtons('departamento-filters', 'departamento', state.departamentos);
   render();
 }
 
@@ -122,7 +181,18 @@ function filtrar(ano, mes) {
   return state.data.filter(d =>
     d.zona === state.zona &&
     d.ano  === ano &&
-    (mes === 'Todos' || d.mes === mes)
+    (mes === 'Todos' || d.mes === mes) &&
+    (state.meses.length === 0 || state.meses.includes(d.mes)) &&
+    (state.departamentos.length === 0 ||
+      state.departamentos.includes(normalizarDepto(d.depto)))
+  );
+}
+
+function filtrarInventario() {
+  return state.inventario.filter(d =>
+    d.zona === state.zona &&
+    (state.departamentos.length === 0 ||
+      state.departamentos.includes(normalizarDepto(d.depto)))
   );
 }
 
@@ -153,8 +223,8 @@ function agregarInventario(rows) {
    RENDER PRINCIPAL
    ========================================================= */
 function render() {
-  const datosCurr = filtrar(state.añoActual,   state.mes);
-  const datosAnt  = filtrar(state.añoAnterior, state.mes);
+  const datosCurr = filtrar(state.añoActual, 'Todos');
+  const datosAnt  = filtrar(state.añoAnterior, 'Todos');
 
   renderKPIs(datosCurr, datosAnt);
   renderGauge(datosCurr);
@@ -167,9 +237,7 @@ function render() {
    KPIs
    ========================================================= */
 function renderKPIs(curr, ant) {
-  const inventario = agregarInventario(
-    state.inventario.filter(d => d.zona === state.zona)
-  );
+  const inventario = agregarInventario(filtrarInventario());
   const inv = inventario.inv;
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? (vacun / inv * 100) : 0;
@@ -191,9 +259,7 @@ function renderKPIs(curr, ant) {
    GAUGE
    ========================================================= */
 function renderGauge(curr) {
-  const inv = agregarInventario(
-    state.inventario.filter(d => d.zona === state.zona)
-  ).inv;
+  const inv = agregarInventario(filtrarInventario()).inv;
   const vacun = curr.reduce((s, d) => s + d.vacun, 0);
   const cob   = inv > 0 ? Math.min((vacun / inv * 100), 200) : 0;
 
@@ -334,8 +400,7 @@ function renderBarras(curr) {
 
   const porDepto = new Map();
   const inventarioProcesado = new Set();
-  state.inventario
-    .filter(d => d.zona === state.zona)
+  filtrarInventario()
     .forEach(d => {
       const deptoKey = normalizarDepto(d.depto);
       if (!porDepto.has(deptoKey)) {
@@ -412,7 +477,12 @@ function renderBarras(curr) {
 }
 
 function normalizarDepto(depto) {
-  return String(depto || '').trim().toLocaleUpperCase('es-CO');
+  return String(depto || '')
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+(ZC|ZE|ZL1|ZL2|DC)$/i, '');
 }
 
 /* =========================================================
@@ -423,8 +493,7 @@ function renderTabla(curr) {
   const inventarioProcesado = new Set();
   const prediosProcesados = new Set();
 
-  state.inventario
-    .filter(d => d.zona === state.zona)
+  filtrarInventario()
     .forEach(d => {
       const deptoKey = normalizarDepto(d.depto);
       if (!porDepto.has(deptoKey)) {
