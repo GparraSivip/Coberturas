@@ -26,6 +26,9 @@ const $ = id => document.getElementById(id);
 let chartTendencia = null;
 let chartBarras    = null;
 let chartGauge     = null;
+let mapaCobertura = null;
+let capaCobertura = null;
+let geoColombia = null;
 
 /* =========================================================
    ARRANQUE
@@ -257,6 +260,7 @@ function render() {
   renderGauge(datosCurr);
   renderTendencia();
   renderBarras(datosCurr);
+  renderMapa(datosCurr);
   renderTabla(datosCurr);
 }
 
@@ -287,6 +291,8 @@ function updateDashboardLabels() {
   $('gauge-titulo').textContent = `Cobertura nacional de ${sujetos}`;
   $('barras-titulo').textContent = `${inventario} vs. ${actividad} — Top 15 departamentos`;
   $('tendencia-titulo').textContent = `Comparativo mensual — ${actividad}`;
+  $('mapa-titulo').textContent =
+    `Mapa de cobertura de ${sujetos} por departamento`;
   $('tabla-head').innerHTML = `
     <tr>
       <th>Departamento</th>
@@ -543,13 +549,148 @@ function renderBarras(curr) {
   });
 }
 
+/* =========================================================
+   MAPA DE CALOR POR DEPARTAMENTO (TILE MAP)
+   ========================================================= */
+function renderMapa(curr) {
+  const mapa = $('mapaCobertura');
+  const leyenda = $('mapaLeyenda');
+  if (!mapa || !leyenda || typeof L === 'undefined') return;
+
+  const porDepto = new Map();
+  const inventarioAnimalesProcesado = new Set();
+  const inventarioPrediosProcesado = new Set();
+  const esAnimales = state.metrica === 'Animales';
+
+  filtrarInventario().forEach(d => {
+    const key = normalizarDepto(d.depto);
+    if (!porDepto.has(key)) porDepto.set(key, { inventario: 0, actividad: 0 });
+    const item = porDepto.get(key);
+    const codigo = d.cod || `${d.depto}|${d.mcpo}`;
+
+    if (esAnimales) {
+      const claveInventario = `${codigo}|${d.zonaInv}`;
+      if (!inventarioAnimalesProcesado.has(claveInventario)) {
+        item.inventario += d.inv || 0;
+        inventarioAnimalesProcesado.add(claveInventario);
+      }
+    } else if (!inventarioPrediosProcesado.has(codigo)) {
+      item.inventario += d.predios || 0;
+      inventarioPrediosProcesado.add(codigo);
+    }
+  });
+
+  curr.forEach(d => {
+    const key = normalizarDepto(d.depto);
+    if (!porDepto.has(key)) porDepto.set(key, { inventario: 0, actividad: 0 });
+    porDepto.get(key).actividad += valorActividad(d);
+  });
+
+  if (esAnimales && state.zona === 'Vacunación') {
+    porDepto.forEach(item => { item.inventario /= 2; });
+  }
+
+  leyenda.innerHTML = `
+    <span class="map-legend-item"><span class="map-legend-swatch" style="background:#cde4f7"></span>0–25%</span>
+    <span class="map-legend-item"><span class="map-legend-swatch" style="background:#83b5df"></span>25–50%</span>
+    <span class="map-legend-item"><span class="map-legend-swatch" style="background:#4a90d9"></span>50–75%</span>
+    <span class="map-legend-item"><span class="map-legend-swatch" style="background:#2563a8"></span>75–90%</span>
+    <span class="map-legend-item"><span class="map-legend-swatch" style="background:#27ae60"></span>≥90%</span>
+  `;
+
+  function dibujarMapa(geojson) {
+    if (!mapaCobertura) {
+      mapa.innerHTML = '';
+      mapaCobertura = L.map(mapa, {
+        scrollWheelZoom: true,
+        attributionControl: true,
+        zoomControl: true,
+      }).setView([4.4, -74.1], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap',
+      }).addTo(mapaCobertura);
+    }
+
+    if (capaCobertura) mapaCobertura.removeLayer(capaCobertura);
+
+    capaCobertura = L.geoJSON(geojson, {
+      style(feature) {
+        const nombreGeo = feature.properties.shapeName || '';
+        const key = normalizarDepto(nombreGeo);
+        const item = porDepto.get(key);
+        const cobertura = item && item.inventario > 0
+          ? item.actividad / item.inventario * 100
+          : null;
+        const seleccionado = state.departamentos.length === 0 ||
+          state.departamentos.includes(key);
+
+        return {
+          fillColor: seleccionado ? colorCobertura(cobertura) : '#edf2f7',
+          weight: 1,
+          opacity: 1,
+          color: '#4b5563',
+          fillOpacity: seleccionado && cobertura != null ? 0.82 : 0.55,
+        };
+      },
+      onEachFeature(feature, layer) {
+        const nombreGeo = feature.properties.shapeName || 'Departamento';
+        const key = normalizarDepto(nombreGeo);
+        const item = porDepto.get(key);
+        const cobertura = item && item.inventario > 0
+          ? item.actividad / item.inventario * 100
+          : null;
+
+        layer.bindTooltip(
+          `<strong>${nombreGeo}</strong><br>${cobertura == null ? 'Sin datos' : cobertura.toFixed(1) + '%'}`,
+          { className: 'departamento-tooltip', sticky: true }
+        );
+      }
+    }).addTo(mapaCobertura);
+
+    mapaCobertura.fitBounds(capaCobertura.getBounds(), { padding: [8, 8] });
+  }
+
+  if (geoColombia) {
+    dibujarMapa(geoColombia);
+  } else {
+    fetch('data/colombia-departamentos.geojson')
+      .then(response => {
+        if (!response.ok) throw new Error(`No se pudo cargar el mapa (${response.status})`);
+        return response.json();
+      })
+      .then(geojson => {
+        geoColombia = geojson;
+        dibujarMapa(geoColombia);
+      })
+      .catch(error => {
+        mapa.innerHTML = `<p style="padding:20px;color:#c0392b">${error.message}</p>`;
+      });
+  }
+}
+
+function colorCobertura(valor) {
+  if (valor == null) return '#edf2f7';
+  if (valor >= 90) return '#27ae60';
+  if (valor >= 75) return '#2563a8';
+  if (valor >= 50) return '#4a90d9';
+  if (valor >= 25) return '#83b5df';
+  return '#cde4f7';
+}
+
 function normalizarDepto(depto) {
-  return String(depto || '')
+  let valor = String(depto || '')
     .trim()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toUpperCase()
+    .replace(/[.]/g, '')
     .replace(/\s+(ZC|ZE|ZL1|ZL2|DC)$/i, '');
+
+  if (/^BOGOTA/.test(valor)) return 'BOGOTA';
+  if (/^SAN ANDRES/.test(valor)) return 'SAN ANDRES';
+  return valor;
 }
 
 /* =========================================================
